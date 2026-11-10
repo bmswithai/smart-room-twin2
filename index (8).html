@@ -1,0 +1,2687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Classroom Digital Twin — BMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1115;--panel:#151920;--card:#1b2028;--card2:#212733;--line:#2a313c;
+  --ink:#e9edf2;--ink2:#aab4c0;--muted:#717c89;--accent:#4aa3ff;
+  --good:#2fbf71;--warn:#f0a500;--crit:#ff4d4f;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.4 Inter,system-ui,sans-serif;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+#app{display:flex;height:100vh}
+#stage{position:relative;flex:1;min-width:0;overflow:hidden;background:#0b0d10}
+#stage canvas{display:block}
+#labels{position:absolute;inset:0;pointer-events:none}
+#panel{width:390px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:16px 16px 40px}
+h1{font-size:15px;margin:0 0 2px;font-weight:700;letter-spacing:.2px}
+.sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:20px 0 8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.row{display:flex;gap:8px;align-items:center}
+.row+.row{margin-top:8px}
+select,input[type=text],input[type=number]{background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;min-width:0}
+select{flex:1}
+input[type=text]{flex:1;font-family:'JetBrains Mono',monospace;font-size:12px}
+.btn{background:var(--accent);border:0;border-radius:7px;padding:7px 12px;font-weight:600;color:#071321;cursor:pointer;white-space:nowrap}
+.btn.ghost{background:var(--card2);color:var(--ink);border:1px solid var(--line)}
+.btn:hover{filter:brightness(1.1)}
+.conn{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--ink2);font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.ok{background:var(--good);box-shadow:0 0 8px var(--good)}
+.dot.sim{background:var(--accent)}
+.dot.err{background:var(--crit)}
+.raw{margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 10px 6px;cursor:pointer;transition:border-color .2s}
+.tile:hover,.tile.sel{border-color:var(--accent)}
+.tile .name{color:var(--ink2);font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.tile .val{font:600 22px/1.2 'JetBrains Mono',monospace;margin:4px 0 2px}
+.tile .val small{font-size:12px;color:var(--ink2);font-weight:500;margin-left:3px}
+.tile canvas{width:100%;height:34px;display:block}
+.tile .hov{font-size:11px;color:var(--muted);height:14px;font-family:'JetBrains Mono',monospace}
+.pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;border:1px solid}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.good{color:var(--good);border-color:#2fbf7155}
+.pill.warn{color:var(--warn);border-color:#f0a50055}
+.pill.crit{color:var(--crit);border-color:#ff4d4f66}
+.act{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.act:last-child{border-bottom:0;padding-bottom:0}
+.act:first-child{padding-top:0}
+.act .t{font-weight:600}
+.act .s{color:var(--muted);font-size:12px;grid-column:1}
+.act .s b{color:var(--ink2);font-weight:600}
+.seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:2px;grid-row:span 2}
+.seg button{background:none;border:0;padding:5px 9px;border-radius:5px;cursor:pointer;color:var(--ink2);font-size:12px;font-weight:500}
+.seg button.on{background:var(--accent);color:#071321;font-weight:600}
+.sl{display:grid;grid-template-columns:110px 1fr 58px;gap:8px;align-items:center}
+.sl+.sl{margin-top:8px}
+.sl label{color:var(--ink2);font-size:12px}
+.sl output{font-family:'JetBrains Mono',monospace;font-size:12px;text-align:right}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.scen{display:flex;flex-wrap:wrap;gap:6px}
+.scen .btn.ghost.on{border-color:var(--warn);color:var(--warn)}
+#log{list-style:none;margin:0;padding:0;max-height:190px;overflow:auto;font-size:12px}
+#log li{padding:5px 0;border-bottom:1px solid var(--line);color:var(--ink2);display:flex;gap:8px}
+#log li time{font-family:'JetBrains Mono',monospace;color:var(--muted);flex:none;font-size:11px;padding-top:1px}
+#log li.warn{color:var(--warn)} #log li.crit{color:var(--crit)}
+details{margin-top:8px}
+summary{cursor:pointer;color:var(--ink2);font-size:12px}
+pre{background:#0d1014;border:1px solid var(--line);border-radius:7px;padding:8px;font:11px/1.5 'JetBrains Mono',monospace;color:var(--ink2);overflow:auto;white-space:pre-wrap}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+/* overlays */
+.ov{position:absolute;z-index:5}
+#topbar{top:12px;left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;pointer-events:none}
+#topbar>*{pointer-events:auto}
+.chipgrp{display:flex;background:#151920e6;border:1px solid var(--line);border-radius:9px;padding:3px;backdrop-filter:blur(6px)}
+.chipgrp button{background:none;border:0;padding:6px 10px;border-radius:6px;cursor:pointer;color:var(--ink2);font-size:12px;font-weight:500}
+.chipgrp button.on{background:#2a3442;color:var(--ink)}
+.chipgrp .lbl{padding:6px 8px 6px 9px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;align-self:center}
+#alarm{left:50%;transform:translateX(-50%);top:62px;background:#3a0f12f0;border:1px solid var(--crit);color:#ffd7d7;padding:9px 16px;border-radius:9px;font-weight:600;display:none;align-items:center;gap:10px;box-shadow:0 0 30px #ff4d4f55}
+#alarm.show{display:flex;animation:pulse 1s infinite alternate}
+@keyframes pulse{from{box-shadow:0 0 10px #ff4d4f33}to{box-shadow:0 0 34px #ff4d4faa}}
+#legend{left:12px;bottom:64px;background:#151920e6;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:11px;color:var(--ink2);width:230px}
+#legend .bar{height:8px;border-radius:4px;margin:6px 0 3px;background:linear-gradient(90deg,#2f6fdb,#7fa6e6,#8a8f98,#e7907a,#d8412f)}
+#legend .ends{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)}
+#clock{right:12px;bottom:64px;background:#151920e6;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:11px 'JetBrains Mono',monospace;color:var(--ink2);text-align:right}
+#editbar{left:50%;transform:translateX(-50%);bottom:64px;z-index:6;background:#151920f2;border:1px solid #ffd23f88;border-radius:10px;padding:8px;max-width:calc(100% - 24px)}
+#editbar .ebtns{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+#editbar button{background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:6px 9px;cursor:pointer;font-size:12px}
+#editbar button:hover:not(:disabled){border-color:#ffd23f}
+#editbar button:disabled{opacity:.35;cursor:default}
+#editbar button.pri{background:#ffd23f;color:#1a1500;border-color:#ffd23f;font-weight:600}
+#editbar .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+#editSel{font-size:12px;color:#ffe48a;margin-top:6px;padding-left:2px;font-family:'JetBrains Mono',monospace}
+#editBtn.on{background:#ffd23f;color:#1a1500}
+.modal{inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:20}
+.modal[hidden]{display:none}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;width:min(620px,92%);max-height:86%;overflow:auto}
+.modal h3{margin:0 0 10px;font-size:15px}
+.modal table{width:100%;border-collapse:collapse;font-size:12px}
+.modal td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink2)}
+.modal td:first-child{white-space:nowrap;color:var(--ink);font-family:'JetBrains Mono',monospace;width:1%}
+.modal textarea{width:100%;height:180px;background:#0d1014;color:var(--ink2);border:1px solid var(--line);border-radius:7px;font:11px 'JetBrains Mono',monospace;padding:8px}
+kbd{background:var(--card2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font:11px 'JetBrains Mono',monospace}
+#recbar{left:12px;right:12px;bottom:12px;background:#151920f2;border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px);z-index:7;overflow:hidden}
+#recHead{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;user-select:none}
+#recHead .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);flex:none}
+#recTop{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+#recCount{font-size:11px;color:var(--ink2);flex:none}
+#recCaret{color:var(--muted);flex:none;transition:transform .2s}
+#recbar.open #recCaret{transform:rotate(180deg)}
+#recList{max-height:0;overflow:auto;transition:max-height .25s}
+#recbar.open #recList{max-height:52vh;border-top:1px solid var(--line)}
+.rec{padding:10px 12px}
+.rec+.rec{border-top:1px solid var(--line)}
+.rec .top{display:flex;gap:10px;align-items:flex-start}
+.rec .main{flex:1;min-width:0}
+.rec .ttl{font-weight:600;font-size:13px}
+.rec .best{margin-top:3px;font-size:12.5px;color:var(--ink)}
+.rec .best em{font-style:normal;color:var(--accent);font-weight:600;margin-right:4px}
+.rec .tog{font-size:11px;color:var(--muted);cursor:pointer;margin-top:4px;display:inline-block;user-select:none}
+.rec .tog:hover{color:var(--ink2)}
+.rec .more{display:none;margin-top:8px;padding:8px 10px;background:#0f1318;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink2)}
+.rec.open .more{display:block}
+.rec .more h4{margin:0 0 3px;font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:600}
+.rec .more h4+*{margin-top:0}
+.rec .more ol{margin:0 0 8px;padding-left:18px}
+.rec .more li{margin:2px 0}
+.rec .more p{margin:0 0 8px}
+.rec .alt{display:flex;gap:8px;align-items:center;margin:4px 0}
+.rec .alt span{flex:1}
+.rec button.go,.rec button.alt-go{background:var(--accent);color:#071321;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;flex:none}
+.rec button.alt-go{background:var(--card2);color:var(--ink);border:1px solid var(--line);font-weight:500;padding:4px 9px}
+.rec button.go:hover,.rec button.alt-go:hover{filter:brightness(1.12)}
+.sev{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;border:1px solid;margin-top:1px;white-space:nowrap;flex:none}
+.sev.crit{color:var(--crit);border-color:#ff4d4f66}.sev.warn{color:var(--warn);border-color:#f0a50055}
+.sev.info{color:var(--accent);border-color:#4aa3ff55}.sev.ok{color:var(--good);border-color:#2fbf7155}
+.recbtns{display:flex;flex-wrap:wrap;gap:6px}
+.recstat{font-size:12px;color:var(--ink2);margin-top:10px;display:flex;align-items:center;gap:8px}
+.recdot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.recdot.on{background:var(--crit);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+/* login */
+#login{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 20%,#1c2a3b,#0b0d10 70%);padding:16px}
+#login[hidden]{display:none}
+#login .box{width:min(430px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 26px 20px;box-shadow:0 24px 70px #000a}
+#login .brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+#login .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#4aa3ff,#2fbf71);display:grid;place-items:center;font-weight:800;color:#071321}
+#login h1{font-size:17px;margin:0}
+#login .sub{margin:0 0 6px}
+.field{display:flex;flex-direction:column;gap:5px;margin-top:12px}
+.field label{font-size:12px;color:var(--ink2)}
+.field input{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px}
+.field input:focus{outline:2px solid #4aa3ff66;border-color:var(--accent)}
+#lgGo{width:100%;margin-top:16px;padding:10px}
+.err{color:var(--crit);font-size:12px;min-height:16px;margin-top:10px}
+.linkbtn{background:none;border:0;color:var(--accent);cursor:pointer;font-size:12px;padding:0}
+.linkbtn:hover{text-decoration:underline}
+#who{font-size:12px;color:var(--ink2);margin:-8px 0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* insights, energy, lecture, replay, alerts */
+.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:12px;align-items:baseline}
+.kv dt{color:var(--ink2)} .kv dd{margin:0;text-align:right}
+.kv dd b{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--ink)} .kv dd small{display:block;color:var(--muted);font-size:11px}
+.health{margin-top:10px;border-top:1px solid var(--line);padding-top:8px;font-size:12px}
+.health .h{display:flex;gap:8px;align-items:flex-start;padding:3px 0;color:var(--ink2)}
+.health .h .pill{flex:none}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat3 div{background:var(--card2);border-radius:8px;padding:8px 9px}
+.stat3 b{display:block;font:600 16px 'JetBrains Mono',monospace}
+.stat3 span{font-size:11px;color:var(--ink2)}
+.bars{margin-top:10px}
+.bars .r{display:grid;grid-template-columns:84px 1fr 92px;gap:8px;align-items:center;font-size:12px;margin-top:6px;color:var(--ink2)}
+.bars .b{height:8px;background:var(--card2);border-radius:4px;overflow:hidden}
+.bars .b i{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0;transition:width .4s}
+.bars .r span:last-child{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px}
+.cfg2{display:grid;grid-template-columns:1fr 90px;gap:6px 10px;align-items:center;font-size:12px;color:var(--ink2);margin-top:8px}
+.cfg2 input{width:100%}
+.ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ctl .btn.ghost.on{border-color:var(--good);color:var(--good)}
+#slNum,#rpTime{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink2)}
+#rpChart{width:100%;height:90px;display:block;margin-top:8px;background:#0f1318;border-radius:6px}
+.chk{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ink2)}
+.chk input{accent-color:var(--accent)}
+.chkgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:8px}
+input[type=password]{background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;min-width:0;flex:1;font-family:'JetBrains Mono',monospace;font-size:12px}
+.hidden{display:none !important}
+/* 3D labels */
+.tag{background:#10141acc;border:1px solid #ffffff22;border-radius:8px;padding:4px 8px;font:600 11px 'JetBrains Mono',monospace;color:#fff;white-space:nowrap;display:flex;align-items:center;gap:6px;backdrop-filter:blur(4px);transform:translateY(-14px)}
+.tag i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.tag span{color:#aab4c0;font-weight:500;font-family:Inter,sans-serif}
+.tag.hide{display:none}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+@media (max-width:860px){
+  html,body{overflow:auto;height:auto}
+  #app{flex-direction:column;height:auto}
+  #stage{height:60vh;flex:none}
+  #panel{width:100%;border-left:0;border-top:1px solid var(--line)}
+  #legend{display:none}
+  #clock{display:none}
+}
+</style>
+<script src="firebase-config.js" onerror="window.FIREBASE_CONFIG=null"></script>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="login">
+  <form class="box" id="lgForm" autocomplete="on">
+    <div class="brand"><div class="logo">DT</div><div><h1>Smart Room Digital Twin</h1><div class="sub" style="margin:0">Building Management System</div></div></div>
+    <h2 id="lgTitle" style="margin-top:18px">Administrator sign in</h2>
+    <div class="field"><label for="lgRoom">Room number</label><input id="lgRoom" required maxlength="20" placeholder="e.g. B-214" autocomplete="off"></div>
+    <div class="field"><label for="lgEmail">Administrator email</label><input id="lgEmail" type="email" required placeholder="admin@university.edu" autocomplete="username"></div>
+    <div class="field"><label for="lgPw">Password</label><input id="lgPw" type="password" required minlength="6" autocomplete="current-password"></div>
+    <div class="field" id="lgPw2Row"><label for="lgPw2">Confirm password</label><input id="lgPw2" type="password" minlength="6" autocomplete="new-password"></div>
+    <button class="btn" id="lgGo" type="submit">Sign in</button>
+    <div class="err" id="lgErr"></div>
+    <div class="row" style="justify-content:space-between;margin-top:4px">
+      <button class="linkbtn" type="button" id="lgSwitch">Set up a new room</button>
+      <button class="linkbtn" type="button" id="lgForgot">Forgot password?</button>
+    </div>
+    <div id="lgReset" class="note hidden" style="margin-top:10px;padding:10px;border:1px solid #ff4d4f55;border-radius:8px">
+      This deletes the administrator for this room on this computer so you can set it up again.
+      <div class="row" style="margin-top:8px;justify-content:flex-end"><button class="btn ghost" type="button" id="lgResetNo">Cancel</button><button class="btn" type="button" id="lgResetYes" style="background:var(--crit);color:#fff">Reset room</button></div>
+    </div>
+    <p class="note" id="lgNote" style="margin-top:14px">Connecting…</p>
+  </form>
+</div>
+<div id="app">
+  <div id="stage">
+    <div id="loading">Loading 3D room…</div>
+    <div id="labels"></div>
+    <div id="topbar" class="ov">
+      <div class="chipgrp" id="views">
+        <span class="lbl">View</span>
+        <button data-v="photo" class="on">Photo angle</button>
+        <button data-v="overview">Overview</button>
+        <button data-v="top">Top</button>
+        <button data-v="front">Front</button>
+      </div>
+      <div class="chipgrp">
+        <button id="editBtn" title="Move, add, rotate and delete chairs; move sensors (E)">✎ Edit layout</button>
+        <button id="helpBtn" title="Controls and shortcuts (H)">? Help</button>
+        <button id="glbBtn" title="Download the room as a .glb 3D file for Unity or Blender">⬇ Export .glb</button>
+        <button id="logoutTop" title="Log out when you are finished">⏻ Log out</button>
+      </div>
+      <div class="chipgrp" id="layers">
+        <span class="lbl">Layers</span>
+        <button data-l="heat" class="on">Heatmap</button>
+        <button data-l="labels" class="on">Labels</button>
+        <button data-l="flow" class="on">Airflow</button>
+        <button data-l="gas" class="on">Gas cloud</button>
+      </div>
+    </div>
+    <div id="alarm" class="ov">⚠ GAS ALARM — ventilation forced ON, evacuate room</div>
+    <div id="legend" class="ov">
+      Floor temperature (blue = cool, red = hot)
+      <div class="bar"></div>
+      <div class="ends"><span>18 °C</span><span id="lgSp">24 °C</span><span>30 °C</span></div>
+    </div>
+    <div id="clock" class="ov"></div>
+    <div id="recbar" class="ov">
+      <div id="recHead" title="Click to see all recommendations">
+        <span class="lbl">Recommendations</span>
+        <span class="sev ok" id="recSev">OK</span>
+        <span id="recTop">Checking the room…</span>
+        <span id="recCount"></span>
+        <span id="recCaret">▲</span>
+      </div>
+      <div id="recList"></div>
+    </div>
+    <div id="editbar" class="ov" hidden>
+      <div class="ebtns">
+        <button data-e="add">＋ Add chair (N)</button>
+        <button id="eDup" data-e="dup">Duplicate (D)</button>
+        <button id="eRot" data-e="rot">Rotate (R)</button>
+        <button id="eUp" data-e="up">Raise (PgUp)</button>
+        <button id="eDown" data-e="down">Lower (PgDn)</button>
+        <button id="eDel" data-e="del">Delete (Del)</button>
+        <span class="sep"></span>
+        <button data-e="save">Save</button>
+        <button data-e="copy">Copy layout</button>
+        <button data-e="paste">Paste layout</button>
+        <button data-e="reset">Reset</button>
+        <button data-e="done" class="pri">Done (E)</button>
+      </div>
+      <div id="editSel"></div>
+    </div>
+    <div id="layoutDlg" class="ov modal" hidden><div class="box">
+      <h3>Layout (JSON)</h3>
+      <p class="note" style="margin-top:0">Copy this text into your report or a .txt file. To restore a layout, paste text here and press Apply.</p>
+      <textarea id="layoutTxt" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:10px;justify-content:flex-end"><span id="layoutMsg" class="note" style="margin:0 auto 0 0"></span><button class="btn ghost" id="layoutClose">Close</button><button class="btn" id="layoutApply">Apply</button></div>
+    </div></div>
+    <div id="textDlg" class="ov modal" hidden><div class="box">
+      <h3 id="textTitle">CSV</h3>
+      <p class="note" id="textMsg" style="margin-top:0"></p>
+      <textarea id="textTxt" spellcheck="false" readonly></textarea>
+      <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="btn" id="textClose">Close</button></div>
+    </div></div>
+    <div id="logoutDlg" class="ov modal" hidden><div class="box" style="width:min(440px,92%)">
+      <h3>Log out of Room <span id="loRoom"></span>?</h3>
+      <ul id="loList" class="note" style="margin:6px 0 10px;padding-left:18px"></ul>
+      <label class="chk" id="loReportRow"><input type="checkbox" id="loReport" checked> Send a final report to Telegram first</label>
+      <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost" id="loCancel">Cancel</button><button class="btn" id="loGo" style="background:var(--crit);color:#fff">⏻ Log out</button></div>
+    </div></div>
+    <div id="help" class="ov modal" hidden><div class="box">
+      <h3>Controls</h3>
+      <table>
+        <tr><td>Left-drag</td><td>Orbit the camera around the room</td></tr>
+        <tr><td>Right-drag</td><td>Pan (slide) the camera · on a laptop: two-finger drag, or Shift/Ctrl + drag</td></tr>
+        <tr><td>Scroll / pinch</td><td>Zoom in and out</td></tr>
+        <tr><td>Click a sensor</td><td>Fly the camera to that sensor (also: click its tile on the right)</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>4</kbd></td><td>Camera views: Photo angle, Overview, Top, Front</td></tr>
+        <tr><td><kbd>E</kbd></td><td>Turn layout editing on / off</td></tr>
+        <tr><td><kbd>P</kbd></td><td>Projector on / off</td></tr>
+        <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Previous / next slide while the projector is on</td></tr>
+        <tr><td>⬇ Export .glb</td><td>Saves the room, with your current chair and sensor layout, as a 3D file for Unity or Blender</td></tr>
+        <tr><td><kbd>H</kbd> / <kbd>Esc</kbd></td><td>Open / close this help</td></tr>
+        <tr><td>Recommendations bar</td><td>Bottom of the 3D view: the most urgent advice. Click it to see all; buttons apply the fix</td></tr>
+      </table>
+      <h3 style="margin-top:16px">While editing the layout</h3>
+      <table>
+        <tr><td>Click + drag</td><td>Select a chair or sensor and slide it along the floor (the camera is locked while you drag)</td></tr>
+        <tr><td>Click empty space</td><td>Deselect</td></tr>
+        <tr><td><kbd>N</kbd></td><td>Add a chair where the camera is looking</td></tr>
+        <tr><td><kbd>D</kbd></td><td>Duplicate the selected chair</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Rotate the selected chair by 22.5°</td></tr>
+        <tr><td><kbd>Del</kbd></td><td>Delete the selected chair (sensors can't be deleted)</td></tr>
+        <tr><td><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></td><td>Nudge the selection 10 cm</td></tr>
+        <tr><td><kbd>PgUp</kbd>/<kbd>PgDn</kbd></td><td>Raise / lower the selected sensor 10 cm</td></tr>
+        <tr><td>Sensor drop</td><td>A sensor dropped within 60 cm of a wall sticks to that wall. Anywhere else it lies flat, facing up</td></tr>
+        <tr><td>Save</td><td>Keeps the layout in this browser so it comes back next time you open the page</td></tr>
+      </table>
+      <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="helpClose">Got it</button></div>
+    </div></div>
+  </div>
+
+  <aside id="panel">
+    <h1 id="roomTitle">Room Digital Twin · BMS</h1>
+    <div class="sub">Classroom model with live temperature, humidity, light &amp; gas sensing and automated building control.</div>
+    <div id="who"><span id="whoTxt"></span><span id="cloudTxt" style="color:var(--muted)"></span><button class="btn ghost" id="logoutBtn" style="padding:4px 10px;font-size:12px">⏻ Log out</button></div>
+
+    <h2>Data source</h2>
+    <div class="card">
+      <div class="row">
+        <select id="src">
+          <option value="sim">Simulation (no hardware)</option>
+          <option value="serial">USB Serial — Arduino / ESP32</option>
+          <option value="ws">WebSocket — ESP32 / Raspberry Pi</option>
+          <option value="http">HTTP polling — JSON endpoint</option>
+        </select>
+        <button class="btn" id="connect">Start</button>
+      </div>
+      <div class="row" id="rowBaud" hidden>
+        <label style="color:var(--ink2);font-size:12px;width:70px">Baud rate</label>
+        <select id="baud"><option>9600</option><option selected>115200</option><option>57600</option><option>38400</option></select>
+      </div>
+      <div class="row" id="rowUrl" hidden>
+        <input type="text" id="url" value="ws://192.168.1.50:81/" spellcheck="false">
+      </div>
+      <div class="conn"><span class="dot sim" id="cdot"></span><span id="ctext">Simulation running</span></div>
+      <div class="raw" id="raw">—</div>
+      <details>
+        <summary>Message format your sensors should send</summary>
+        <pre>One message per line (any of these work):
+{"temp":24.6,"hum":51,"light":420,"gas":180,"pres":1012.4}
+T:24.6 H:51 L:420 G:180
+24.6,51,420,180     ← temp,hum,light,gas
+
+Commands sent back to the board when the BMS acts:
+{"cmd":"hvac","on":1}   {"cmd":"lights","on":0}
+{"cmd":"blinds","open":0.25}   {"cmd":"vent","on":1}</pre>
+      </details>
+    </div>
+
+    <h2>Sensors</h2>
+    <div class="grid" id="tiles"></div>
+
+    <h2>Data logging (CSV)</h2>
+    <div class="card">
+      <div class="recbtns">
+        <button class="btn" id="recBtn">● Record to file</button>
+        <button class="btn ghost" id="dlBtn">Download CSV</button>
+        <button class="btn ghost" id="cpBtn">Copy CSV</button>
+        <button class="btn ghost" id="clrBtn">Clear</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label style="color:var(--ink2);font-size:12px;width:110px">Save a row every</label>
+        <select id="logEvery"><option value="1" selected>1 second</option><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option></select>
+      </div>
+      <div class="recstat"><span class="recdot" id="recDot"></span><span id="recText">0 rows in memory · not recording to a file</span></div>
+      <div class="note">Rows are kept in memory from the moment the page opens. “Record to file” writes them into a .csv on your computer every 5 seconds while you work (Chrome/Edge). The file opens in Excel or Google Sheets.</div>
+    </div>
+
+    <h2>Insights · prediction &amp; sensor health</h2>
+    <div class="card">
+      <dl class="kv">
+        <dt>Temperature in 30 min</dt><dd><b id="inPred">—</b><small id="inTrend">collecting data…</small></dd>
+        <dt>Gas trend</dt><dd><b id="inGas">—</b><small id="inGasSub"></small></dd>
+        <dt>Dew point</dt><dd><b id="inDew">—</b><small>surfaces colder than this get wet</small></dd>
+        <dt>Mould risk</dt><dd><b id="inMould">—</b></dd>
+        <dt>Feels like (humidex)</dt><dd><b id="inFeel">—</b><small id="inFeelSub"></small></dd>
+      </dl>
+      <div class="health"><div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Sensor health</div><div id="inHealth"></div></div>
+      <div class="note">The forecast fits a straight-line trend (linear regression) to the last 10 minutes of temperature. The health check flags frozen, missing, jumping or impossible readings.</div>
+    </div>
+
+    <h2>Building control</h2>
+    <div class="card" id="acts"></div>
+
+    <h2>Lecture &amp; projector</h2>
+    <div class="card">
+      <div class="ctl">
+        <button class="btn ghost" id="pjBtn">▶ Projector on</button>
+        <button class="btn ghost" id="slPrev" title="Previous slide (←)">◀</button>
+        <span id="slNum">— / —</span>
+        <button class="btn ghost" id="slNext" title="Next slide (→)">▶</button>
+        <label class="chk"><input type="checkbox" id="slAuto" checked> auto-advance</label>
+      </div>
+      <div class="field" style="margin-top:10px"><label for="slTopic">Lecture topic (title slide)</label><input id="slTopic" type="text" value="Smart Buildings: Digital Twins &amp; BMS" style="font-family:Inter,sans-serif;font-size:13px"></div>
+      <div class="ctl" style="margin-top:10px">
+        <button class="btn ghost" id="slLoad">Use my slides…</button>
+        <button class="btn ghost hidden" id="slBuiltIn">Back to built-in slides</button>
+        <input type="file" id="slFiles" accept="image/*" multiple hidden>
+      </div>
+      <div class="note">The projector is aimed at the whiteboard. “Use my slides” takes PNG/JPG images (in PowerPoint: File → Export → PNG, all slides). While the projector is on, the BMS closes the blinds to 30 % to cut glare.</div>
+    </div>
+
+    <h2>Energy &amp; cost</h2>
+    <div class="card">
+      <div class="stat3">
+        <div><b id="enKwh">0.00</b><span>kWh used</span></div>
+        <div><b id="enCost">0.00</b><span>EGP cost</span></div>
+        <div><b id="enSave">0 %</b><span id="enSaveSub">saved by BMS</span></div>
+      </div>
+      <div class="bars" id="enBars"></div>
+      <div class="note" id="enMonth" style="margin-top:10px"></div>
+      <details>
+        <summary>Power ratings &amp; electricity price</summary>
+        <div class="cfg2">
+          <span>AC cassette (W)</span><input type="number" id="pwHvac" min="0" step="50" value="1500">
+          <span>Ceiling lights, all 6 (W)</span><input type="number" id="pwLights" min="0" step="10" value="240">
+          <span>Exhaust fan (W)</span><input type="number" id="pwVent" min="0" step="5" value="60">
+          <span>Projector (W)</span><input type="number" id="pwProj" min="0" step="10" value="250">
+          <span>Price (EGP per kWh)</span><input type="number" id="tariff" min="0" step="0.01" value="2.64">
+        </div>
+        <div class="note">Default price: Egypt commercial tariff 2026, 251–600 kWh/month band. “Saved by BMS” compares against the same room with the AC and lights left on the whole time.</div>
+      </details>
+      <div class="row" style="margin-top:8px;justify-content:flex-end"><button class="btn ghost" id="enReset">Reset counters</button></div>
+    </div>
+
+    <h2>Automation rules</h2>
+    <div class="card">
+      <div class="sl"><label>Temp setpoint</label><input type="range" id="cSp" min="18" max="28" step="0.5" value="23"><output id="oSp"></output></div>
+      <div class="sl"><label>Max humidity</label><input type="range" id="cHum" min="40" max="85" step="1" value="65"><output id="oHum"></output></div>
+      <div class="sl"><label>Min light</label><input type="range" id="cLux" min="100" max="800" step="10" value="300"><output id="oLux"></output></div>
+      <div class="sl"><label>Gas warning</label><input type="range" id="cGw" min="150" max="1000" step="10" value="300"><output id="oGw"></output></div>
+      <div class="sl"><label>Gas alarm</label><input type="range" id="cGa" min="200" max="1500" step="10" value="600"><output id="oGa"></output></div>
+      <div class="note">HVAC cools above setpoint +0.5 °C or when humidity is over the limit. Lights switch on below min light. Blinds close when the room is 2 °C over setpoint. Ventilation runs at gas warning and is forced on at alarm.</div>
+    </div>
+
+    <div id="simBox">
+      <h2>Simulation scenarios</h2>
+      <div class="card">
+        <div class="scen">
+          <button class="btn ghost" id="sLeak">Gas leak</button>
+          <button class="btn ghost" id="sHeat">Heat wave</button>
+          <button class="btn ghost" id="sHumid">Humid day</button>
+          <button class="btn ghost" id="sFault">Sensor fault</button>
+          <button class="btn ghost" id="sReset">Reset</button>
+        </div>
+        <div class="sl" style="margin-top:12px"><label>Time of day</label><input type="range" id="cTod" min="0" max="24" step="0.25" value="11"><output id="oTod"></output></div>
+        <div class="sl"><label>Sim speed</label><input type="range" id="cSpd" min="1" max="10" step="1" value="3"><output id="oSpd"></output></div>
+      </div>
+    </div>
+
+    <h2>History replay</h2>
+    <div class="card">
+      <div class="ctl">
+        <button class="btn ghost" id="rpLoad">Load CSV…</button>
+        <input type="file" id="rpFile" accept=".csv,text/csv,text/plain" hidden>
+        <span id="rpName" class="note" style="margin:0">Replay a recorded CSV in the 3D room.</span>
+      </div>
+      <div id="rpBox" class="hidden">
+        <div class="ctl" style="margin-top:10px">
+          <button class="btn" id="rpPlay">▶ Play</button>
+          <select id="rpRate"><option value="1">1 row/s</option><option value="5">5 rows/s</option><option value="20" selected>20 rows/s</option><option value="60">60 rows/s</option></select>
+          <select id="rpMetric"><option value="temp">Temperature</option><option value="hum">Humidity</option><option value="light">Light</option><option value="gas">Gas</option></select>
+          <button class="btn ghost" id="rpExit">Exit replay</button>
+        </div>
+        <input type="range" id="rpSlider" min="0" max="0" value="0" style="margin-top:10px">
+        <div id="rpTime">—</div>
+        <canvas id="rpChart"></canvas>
+      </div>
+    </div>
+
+    <h2>Phone alerts (Telegram)</h2>
+    <div class="card">
+      <div class="row"><input type="password" id="tgToken" placeholder="Bot token, e.g. 123456:ABC-DEF…" spellcheck="false"></div>
+      <div class="row"><input type="text" id="tgChat" placeholder="Chat ID, e.g. 512345678" spellcheck="false"></div>
+      <div class="chkgrid">
+        <label class="chk"><input type="checkbox" id="tgAlarm" checked> Gas alarm</label>
+        <label class="chk"><input type="checkbox" id="tgWarn" checked> Gas warning</label>
+        <label class="chk"><input type="checkbox" id="tgTemp" checked> Temperature critical</label>
+        <label class="chk"><input type="checkbox" id="tgFault" checked> Sensor faults</label>
+        <label class="chk"><input type="checkbox" id="tgNoData" checked> Board offline</label>
+        <label class="chk"><input type="checkbox" id="tgSim" checked> Also in simulation</label>
+      </div>
+      <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="btn ghost" id="tgSave">Save</button><button class="btn" id="tgTest">Send test</button></div>
+      <div class="note" id="tgStatus">Not set up. Each alert type is sent at most once every 5 minutes.</div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+        <div style="font-weight:600;font-size:12.5px">Automatic reports</div>
+        <div class="row" style="margin-top:8px">
+          <label style="color:var(--ink2);font-size:12px;width:90px">Send a report</label>
+          <select id="trEvery">
+            <option value="off">Off</option><option value="15">every 15 minutes</option><option value="30">every 30 minutes</option>
+            <option value="60">every hour</option><option value="120">every 2 hours</option><option value="360">every 6 hours</option>
+            <option value="720">every 12 hours</option><option value="daily">every day at…</option>
+          </select>
+          <input type="time" id="trAt" value="08:00" class="hidden" style="background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:6px 8px">
+        </div>
+        <div class="row" style="margin-top:8px;justify-content:space-between">
+          <span class="note" id="trStatus" style="margin:0">Automatic reports are off.</span>
+          <button class="btn ghost" id="trNow">Send report now</button>
+        </div>
+        <div class="note">Each report has the current readings, the lowest / average / highest since the last report, gas warnings, device states, energy and cost, the 30-minute forecast and the top recommendation. Reports are sent while this page is open and you are logged in. For reports with the laptop closed, set REPORT_EVERY_MIN in the ESP32 firmware.</div>
+      </div>
+      <details>
+        <summary>How to get a bot token and chat ID</summary>
+        <pre>1. In Telegram, open @BotFather → /newbot → choose a name.
+   It replies with the bot token. Paste it above.
+2. Open your new bot and press Start (send it "hi").
+3. In a browser, open:
+   https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates
+   Find "chat":{"id":123456789 …  → that number is the chat ID.
+4. Press Save, then Send test.
+Works when index.html is opened from your computer.
+For alerts with the laptop closed, use the ESP32 firmware alerts.</pre>
+      </details>
+    </div>
+
+    <h2>Event log</h2>
+    <div class="card"><ul id="log"></ul></div>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const noise = a => (Math.random()*2-1)*a;
+
+/* ------------------------------------------------------------------ state */
+const S = { temp:24.2, hum:52, light:430, gas:140, pres:1012.6 };          // measured values
+const V = { ...S };                                            // smoothed for visuals
+const GAS_BASE = 140, LAMP_LUX = 450;
+const act = {
+  hvac:   { mode:'auto', on:false },
+  lights: { mode:'auto', on:true  },
+  blinds: { mode:'auto', open:1   },
+  vent:   { mode:'auto', on:false }
+};
+let blindsVis = 1;
+const cfg = { setpoint:23, humMax:65, luxMin:300, gasWarn:300, gasAlarm:600 };
+const sim = { tod:11, leak:false, heat:false, humid:false, fault:false, faultAt:0, frozen:null, speed:3 };
+let source = 'sim', lastRx = 0, rxCount = 0, connStart = 0;
+const hist = { temp:[], hum:[], light:[], gas:[], pres:[] };
+const HMAX = 150;
+
+const SENS = {
+  temp:  { name:'Temperature', chip:'BME280',  unit:'°C',  dec:1 },
+  hum:   { name:'Humidity',    chip:'BME280',  unit:'%RH', dec:0 },
+  light: { name:'Light',       chip:'TSL2561', unit:'lux', dec:0 },
+  gas:   { name:'Gas / smoke', chip:'MQ-2',    unit:'ppm', dec:0 },
+  pres:  { name:'Pressure',    chip:'BME280',  unit:'hPa', dec:1, hidden:true }
+};
+const STATUS_COL = { good:'#2fbf71', warn:'#f0a500', crit:'#ff4d4f' };
+
+function status(k){
+  const v = S[k];
+  if (k==='temp'){ if (v>30||v<16) return 'crit'; if (Math.abs(v-cfg.setpoint)>1.5) return 'warn'; return 'good'; }
+  if (k==='hum'){ if (v>80||v<25) return 'crit'; if (v>cfg.humMax||v<35) return 'warn'; return 'good'; }
+  if (k==='light'){ if (v<50) return 'crit'; if (v<cfg.luxMin) return 'warn'; return 'good'; }
+  if (k==='gas'){ if (v>=cfg.gasAlarm) return 'crit'; if (v>=cfg.gasWarn) return 'warn'; return 'good'; }
+  return 'good';
+}
+const STATUS_TXT = {
+  temp:{good:'Comfort',warn:'Off target',crit:'Critical'},
+  hum:{good:'Normal',warn:'Out of range',crit:'Critical'},
+  light:{good:'Adequate',warn:'Too dim',crit:'Dark'},
+  gas:{good:'Clean air',warn:'Warning',crit:'ALARM'}
+};
+
+/* ------------------------------------------------------------------ 3D scene */
+const stage = $('#stage');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+stage.prepend(renderer.domElement);
+$('#loading').remove();
+
+const labelRenderer = new CSS2DRenderer({ element: $('#labels') });
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0d10);
+scene.fog = new THREE.FogExp2(0xdfe6ee, 0.0);
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 100);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI*0.495;
+controls.minDistance = 0.6; controls.maxDistance = 22;
+
+// Room dimensions (metres). x: left→right as in the photo, z: window wall (−) → camera (+)
+const W = 9, D = 7, H = 3, T = 0.12;
+const X0 = -W/2, X1 = W/2, Z0 = -D/2, Z1 = D/2;
+
+function canvasTex(w, h, draw, repX=1, repY=1){
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY);
+  t.anisotropy = 8;
+  return t;
+}
+const M = (o) => new THREE.MeshStandardMaterial(o);
+function box(w,h,d,mat,x,y,z,{cast=true,recv=true}={}){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  m.position.set(x,y,z); m.castShadow=cast; m.receiveShadow=recv; scene.add(m); return m;
+}
+
+/* materials */
+const carpetTex = canvasTex(256,256,(g,w,h)=>{
+  g.fillStyle='#3b3e44'; g.fillRect(0,0,w,h);
+  for(let i=0;i<9000;i++){ const v=50+Math.random()*30|0; g.fillStyle=`rgba(${v},${v+2},${v+6},.5)`; g.fillRect(Math.random()*w,Math.random()*h,1.5,1.5); }
+}, 6, 5);
+const ceilTex = canvasTex(128,128,(g,w,h)=>{
+  g.fillStyle='#e9ebee'; g.fillRect(0,0,w,h);
+  for(let i=0;i<1500;i++){ g.fillStyle='rgba(150,155,160,.25)'; g.fillRect(Math.random()*w,Math.random()*h,1,1); }
+  g.strokeStyle='#b9bdc3'; g.lineWidth=3; g.strokeRect(0,0,w,h);
+}, W/0.6, D/0.6);
+const perfTex = canvasTex(128,128,(g,w,h)=>{
+  g.fillStyle='#d3d6da'; g.fillRect(0,0,w,h);
+  g.fillStyle='#8d9298';
+  for(let y=4;y<h;y+=8) for(let x=4;x<w;x+=8){ g.beginPath(); g.arc(x,y,1.6,0,7); g.fill(); }
+}, 8, 4);
+
+const matWall   = M({ color:0xeef0f2, roughness:0.92 });
+const matCarpet = M({ map:carpetTex, roughness:1 });
+const matCeil   = M({ map:ceilTex, roughness:0.95 });
+const matDark   = M({ color:0x2d3035, roughness:0.6 });
+const matBlack  = M({ color:0x17191c, roughness:0.5, metalness:0.3 });
+const matOrange = M({ color:0xe8742a, roughness:0.75 });
+const matChrome = M({ color:0x9aa0a7, roughness:0.35, metalness:0.8 });
+const matBlind  = M({ color:0x5a5e66, roughness:0.95, side:THREE.DoubleSide });
+const matFrame  = M({ color:0xc9ccd1, roughness:0.5, metalness:0.4 });
+const matWood   = M({ color:0x6b625a, roughness:0.7 });
+
+/* floor & ceiling */
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), matCarpet);
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
+box(W+T*2, T, D+T*2, matCeil, 0, H+T/2, 0, {cast:true, recv:true}).material = matCeil;
+
+/* walls: left, right, near (with door) */
+box(T, H, D+T*2, matWall, X0-T/2, H/2, 0);
+box(T, H, D+T*2, matWall, X1+T/2, H/2, 0);
+box(W, H, T, matWall, 0, H/2, Z1+T/2);
+// door on near wall
+box(1.0, 2.15, 0.04, M({color:0xb7bcc3, roughness:0.6}), -3.2, 1.075, Z1-0.02, {cast:false});
+box(0.04, 0.04, 0.18, matChrome, -2.8, 1.05, Z1-0.1, {cast:false});
+
+// far wall with window opening
+const WX0 = 0.35, WX1 = 4.25, WY0 = 0.85, WY1 = 2.7;
+box(WX0 - X0, H, T, matWall, (X0+WX0)/2, H/2, Z0-T/2);
+box(X1 - WX1, H, T, matWall, (WX1+X1)/2, H/2, Z0-T/2);
+box(WX1-WX0, WY0, T, matWall, (WX0+WX1)/2, WY0/2, Z0-T/2);
+box(WX1-WX0, H-WY1, T, matWall, (WX0+WX1)/2, (WY1+H)/2, Z0-T/2);
+// window sill
+box(WX1-WX0+0.1, 0.04, 0.22, M({color:0xd9dce0}), (WX0+WX1)/2, WY0, Z0+0.05);
+// mullions + frame
+const panes = 3, pw = (WX1-WX0)/panes;
+for(let i=0;i<=panes;i++) box(0.06, WY1-WY0, 0.08, matFrame, WX0+i*pw, (WY0+WY1)/2, Z0-0.04, {cast:true});
+box(WX1-WX0, 0.06, 0.08, matFrame, (WX0+WX1)/2, WY1-0.03, Z0-0.04);
+box(WX1-WX0, 0.06, 0.08, matFrame, (WX0+WX1)/2, WY0+0.03, Z0-0.04);
+// glass
+const matGlass = new THREE.MeshStandardMaterial({ color:0xcfe3f5, transparent:true, opacity:0.18, roughness:0.05, metalness:0.1 });
+const glass = new THREE.Mesh(new THREE.PlaneGeometry(WX1-WX0, WY1-WY0), matGlass);
+glass.position.set((WX0+WX1)/2, (WY0+WY1)/2, Z0-0.05); scene.add(glass);
+// outside view (buildings + sky), brightness follows daylight
+const outsideTex = canvasTex(512,256,(g,w,h)=>{
+  const sky = g.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#cfe0ef'); sky.addColorStop(1,'#f4f6f8');
+  g.fillStyle=sky; g.fillRect(0,0,w,h);
+  const blds=[[0,90,120,'#c9cdd2'],[110,60,90,'#b7bec6'],[190,120,110,'#d8dbdf'],[300,80,80,'#aeb6bf'],[370,40,150,'#c3c8ce']];
+  blds.forEach(([x,y,bw,c])=>{ g.fillStyle=c; g.fillRect(x,y,bw,h-y);
+    g.fillStyle='rgba(90,110,130,.35)'; for(let yy=y+10;yy<h-10;yy+=18) for(let xx=x+8;xx<x+bw-10;xx+=16) g.fillRect(xx,yy,9,10); });
+});
+const matOutside = new THREE.MeshBasicMaterial({ map:outsideTex, toneMapped:false });
+const outside = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.9), matOutside);
+outside.position.set((WX0+WX1)/2, 1.55, Z0-1.2); scene.add(outside);
+
+// roller blinds (one per pane) + roller boxes
+const blinds = [];
+for(let i=0;i<panes;i++){
+  const cx = WX0 + pw*(i+0.5);
+  box(pw-0.02, 0.1, 0.12, matDark, cx, WY1+0.08, Z0+0.07, {cast:true});
+  const b = new THREE.Mesh(new THREE.PlaneGeometry(pw-0.06, 1), matBlind);
+  b.castShadow = true; b.receiveShadow = true;
+  b.position.set(cx, WY1, Z0+0.06); scene.add(b); blinds.push(b);
+}
+function setBlinds(open){ // open: 0 closed, 1 fully open
+  const full = WY1 - WY0 + 0.05, h = Math.max(0.12, full*(1-open));
+  blinds.forEach(b=>{ b.scale.y = h; b.position.y = WY1 - h/2; });
+}
+
+/* acoustic panels, ceiling lights */
+[[0.6,-1.0],[0.9,-2.45]].forEach(([x,z])=>{
+  const p = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.03, 1.15), M({ map:perfTex, roughness:0.9 }));
+  p.position.set(x, H-0.02, z); p.receiveShadow = true; scene.add(p);
+});
+const lampMats = [], lampPos = [[-2.6,-1.6],[-2.6,1.4],[0.6,0.6],[0.6,2.4],[3.2,0.6],[3.2,2.4]];
+lampPos.forEach(([x,z])=>{
+  const m = new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0xfff6e8, emissiveIntensity:1.5 });
+  lampMats.push(m);
+  const p = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.02, 0.58), m);
+  p.position.set(x, H-0.012, z); scene.add(p);
+});
+const roomLights = [[-2,0],[1.8,1.2],[1.8,-1.6]].map(([x,z])=>{
+  const l = new THREE.PointLight(0xfff3e2, 10, 9, 1.6); l.position.set(x, H-0.25, z); scene.add(l); return l;
+});
+
+/* lights: hemisphere + sun through the window */
+const hemi = new THREE.HemisphereLight(0xf4f7fb, 0x50545a, 0.55); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff1d8, 3.2);
+sun.castShadow = true; sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera, { left:-9, right:9, top:9, bottom:-9, near:1, far:40 });
+sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
+scene.add(sun); scene.add(sun.target);
+const alarmLight = new THREE.PointLight(0xff2a2a, 0, 12, 1.5); alarmLight.position.set(0, H-0.4, 0); scene.add(alarmLight);
+
+/* projector — aimed at the whiteboard on the right wall — CCTV, wall speaker */
+const PJ = new THREE.Vector3(0.3, H-0.42, -1.2);
+const projectorBody = box(0.3, 0.13, 0.36, M({color:0xf2f2f2, roughness:0.4}), PJ.x, PJ.y, PJ.z); projectorBody.name = 'Projector';
+box(0.05, 0.3, 0.05, matChrome, PJ.x, H-0.2, PJ.z);
+const lensMat = new THREE.MeshStandardMaterial({ color:0x17191c, roughness:0.3, metalness:0.3, emissive:0xfff2d6, emissiveIntensity:0 });
+const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.04,20), lensMat);
+lens.rotation.z = Math.PI/2; lens.position.set(PJ.x+0.17, PJ.y, PJ.z+0.08); scene.add(lens);
+const lensPt = lens.position.clone().add(new THREE.Vector3(0.02,0,0));
+const dome = new THREE.Mesh(new THREE.SphereGeometry(0.08,24,12,0,Math.PI*2,0,Math.PI/2), M({color:0x222428, roughness:0.2, metalness:0.4}));
+dome.rotation.x = Math.PI; dome.position.set(2.4, H, -1.9); scene.add(dome);
+box(0.08, 0.22, 0.16, M({color:0xf5f5f5}), X0+0.04, 2.35, -1.9);
+
+/* whiteboard on right wall */
+box(0.03, 1.2, 3.0, M({color:0xfbfbfb, roughness:0.25}), X1-0.02, 1.55, -1.2, {cast:false});
+box(0.05, 0.04, 3.0, matFrame, X1-0.03, 0.95, -1.2, {cast:false});
+box(0.05, 0.04, 3.0, matFrame, X1-0.03, 2.15, -1.2, {cast:false});
+// projected slide on the whiteboard + light beam from the projector
+const SLW = 2.1, SLH = 1.18, SLC = new THREE.Vector3(X1-0.04, 1.55, -1.2);
+const slideCanvas = document.createElement('canvas'); slideCanvas.width = 1280; slideCanvas.height = 720;
+const sctx = slideCanvas.getContext('2d');
+const slideTex = new THREE.CanvasTexture(slideCanvas); slideTex.colorSpace = THREE.SRGBColorSpace; slideTex.anisotropy = 8;
+const slideMesh = new THREE.Mesh(new THREE.PlaneGeometry(SLW, SLH), new THREE.MeshBasicMaterial({ map:slideTex, toneMapped:false }));
+slideMesh.rotation.y = -Math.PI/2; slideMesh.position.copy(SLC); slideMesh.name = 'ProjectedSlide'; slideMesh.visible = false; scene.add(slideMesh);
+const beamPts = [];
+{ const cs = [[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>new THREE.Vector3(SLC.x-0.005, SLC.y+b*SLH/2, SLC.z+a*SLW/2));
+  for (let i=0;i<4;i++){ const a = cs[i], b = cs[(i+1)%4]; beamPts.push(lensPt.x,lensPt.y,lensPt.z, a.x,a.y,a.z, b.x,b.y,b.z); } }
+const beamGeo = new THREE.BufferGeometry(); beamGeo.setAttribute('position', new THREE.Float32BufferAttribute(beamPts, 3));
+const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color:0xfff2d6, transparent:true, opacity:0.055, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending }));
+beam.visible = false; scene.add(beam);
+
+/* teacher desk, monitor, PC, stool */
+(function desk(){
+  const dx = 3.35, dz = -2.85;
+  box(1.25, 0.04, 0.62, matWood, dx, 0.74, dz);
+  [[-0.58,-0.27],[0.58,-0.27],[-0.58,0.27],[0.58,0.27]].forEach(([a,b])=>box(0.04,0.72,0.04,matDark,dx+a,0.36,dz+b));
+  box(0.5, 0.3, 0.02, matBlack, dx-0.1, 1.03, dz-0.12);          // monitor
+  box(0.04, 0.16, 0.04, matBlack, dx-0.1, 0.84, dz-0.14);
+  box(0.4, 0.015, 0.14, matDark, dx-0.1, 0.77, dz+0.08);        // keyboard
+  box(0.2, 0.42, 0.45, matBlack, dx+0.85, 0.21, dz);            // PC tower
+  const st = new THREE.Group();
+  const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.17,0.05,24), matBlack); seat.position.y = 0.66;
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.6,10), matChrome); post.position.y = 0.34;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.16,0.012,8,24), matChrome); ring.rotation.x = Math.PI/2; ring.position.y = 0.25;
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.22,0.03,24), matChrome); foot.position.y = 0.02;
+  [seat,post,ring,foot].forEach(m=>{ m.castShadow=true; st.add(m); });
+  st.position.set(dx+0.75, 0, dz+0.55); scene.add(st);
+})();
+
+/* tablet-arm chairs (empty room — no people) */
+function makeChair(){
+  const g = new THREE.Group();
+  const add = (geo, mat, x,y,z, rx=0,ry=0,rz=0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x,y,z); m.rotation.set(rx,ry,rz); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
+  add(new THREE.BoxGeometry(0.48,0.07,0.46), matOrange, 0,0.47,0);
+  add(new THREE.BoxGeometry(0.46,0.03,0.44), matBlack, 0,0.425,0);
+  add(new THREE.BoxGeometry(0.45,0.4,0.035), matDark, 0,0.8,-0.25, -0.12);
+  add(new THREE.BoxGeometry(0.04,0.3,0.03), matBlack, 0,0.57,-0.24, -0.1);
+  const tab = add(new THREE.CylinderGeometry(0.2,0.2,0.02,28), matDark, 0.27,0.72,0.12);
+  tab.scale.set(0.95,1,1.35);
+  add(new THREE.CylinderGeometry(0.012,0.012,0.3,8), matBlack, 0.26,0.58,-0.02, 0,0,0);
+  add(new THREE.CylinderGeometry(0.03,0.03,0.33,10), matBlack, 0,0.25,0);
+  add(new THREE.TorusGeometry(0.19,0.012,6,24), matBlack, 0,0.2,0, Math.PI/2);
+  for(let i=0;i<5;i++){
+    const a = i/5*Math.PI*2;
+    add(new THREE.BoxGeometry(0.035,0.03,0.32), matBlack, Math.sin(a)*0.15,0.07,Math.cos(a)*0.15, 0,a,0);
+    add(new THREE.SphereGeometry(0.03,10,8), matBlack, Math.sin(a)*0.31,0.03,Math.cos(a)*0.31);
+  }
+  return g;
+}
+const chairProto = makeChair();
+const chairSpots = [
+  [-3.95, 2.7, 1.5],[-3.95,1.6,1.6],[-3.9,0.5,1.5],[-3.9,-0.6,1.55],[-3.85,-1.7,1.5],[-3.6,-2.8,1.3],
+  [-2.6,2.2,1.7],[-2.5,0.9,1.4],[-2.3,-0.4,1.6],[-2.4,-1.7,1.3],
+  [-1.0,1.9,1.9],[-0.9,0.5,1.2],[-0.6,-0.9,1.7],[-1.1,-2.2,1.5],
+  [0.6,1.3,1.4],[0.8,-0.1,2.0],[1.4,-2.0,1.3],[0.4,-2.8,1.6],[2.1,-0.7,1.2],[1.9,1.9,1.8]
+];
+const chairs = [];
+function addChair(x, z, ry){ const c = chairProto.clone(); c.userData = { kind:'chair' }; c.position.set(x,0,z); c.rotation.y = ry; scene.add(c); chairs.push(c); return c; }
+function removeChair(c){ scene.remove(c); chairs.splice(chairs.indexOf(c), 1); }
+chairSpots.forEach(([x,z,ry])=>addChair(x,z,ry));
+
+/* BMS equipment: ceiling cassette AC + exhaust fan */
+const acPos = new THREE.Vector3(-1.4, H, 0.6);
+box(0.84, 0.08, 0.84, M({color:0xf4f5f6, roughness:0.5}), acPos.x, H-0.04, acPos.z);
+const acVentMat = new THREE.MeshStandardMaterial({ color:0x6d7680, emissive:0x2c8cff, emissiveIntensity:0 });
+[[0,0.32,0],[0,-0.32,0],[0.32,0,1],[-0.32,0,1]].forEach(([dx,dz,r])=>{
+  const s = new THREE.Mesh(new THREE.BoxGeometry(0.55,0.01,0.07), acVentMat);
+  s.position.set(acPos.x+dx, H-0.085, acPos.z+dz); s.rotation.y = r*Math.PI/2; scene.add(s);
+});
+const fanPos = new THREE.Vector3(-3.2, 2.45, Z0+0.03);
+const fanRing = new THREE.Mesh(new THREE.TorusGeometry(0.22,0.025,10,32), M({color:0xdedfe1}));
+fanRing.position.copy(fanPos); scene.add(fanRing);
+const fanBack = new THREE.Mesh(new THREE.CircleGeometry(0.21,32), matBlack); fanBack.position.copy(fanPos).add(new THREE.Vector3(0,0,-0.01)); scene.add(fanBack);
+const fan = new THREE.Group(); fan.position.copy(fanPos).add(new THREE.Vector3(0,0,0.01)); scene.add(fan);
+for(let i=0;i<4;i++){ const b = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.18,0.01), matChrome); b.position.y = 0.1; const p = new THREE.Group(); p.rotation.z = i*Math.PI/2; p.add(b); fan.add(p); }
+
+/* sensor modules — modelled on the real breakout boards (shown ~4× real size so they are visible) */
+const sensorNodes = {}, nodes = [];
+const matGold = M({ color:0xd4a83a, roughness:0.35, metalness:0.9 });
+function pcbMesh(w, h, color, text){
+  const tex = canvasTex(256, Math.round(256*h/w), (g,cw,ch)=>{
+    g.fillStyle = '#'+color.toString(16).padStart(6,'0'); g.fillRect(0,0,cw,ch);
+    g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 2;               // traces
+    for(let i=0;i<7;i++){ g.beginPath(); g.moveTo(20+i*30, ch-20); g.lineTo(20+i*30, ch*0.55); g.lineTo(cw*0.5, ch*0.45); g.stroke(); }
+    g.fillStyle = '#e8e8e8'; [[16,16],[cw-16,16]].forEach(([x,y])=>{ g.beginPath(); g.arc(x,y,10,0,7); g.fill(); g.fillStyle='#222'; g.beginPath(); g.arc(x,y,6,0,7); g.fill(); g.fillStyle='#e8e8e8'; });
+    g.fillStyle = '#ffffff'; g.font = 'bold 26px "JetBrains Mono", monospace'; g.textAlign = 'center';
+    g.fillText(text, cw/2, 34);
+  });
+  const side = M({ color, roughness:0.6 });
+  const top = M({ map:tex, roughness:0.55 });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.008), [side,side,side,side,top,side]);
+  m.castShadow = true; return m;
+}
+function headerPins(g, n, w, y){
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(n*0.012, 0.012, 0.012), matBlack);
+  strip.position.set(0, y, 0.01); g.add(strip);
+  for(let i=0;i<n;i++){ const p = new THREE.Mesh(new THREE.BoxGeometry(0.003,0.003,0.03), matGold); p.position.set((i-(n-1)/2)*0.012, y, 0.02); g.add(p); }
+}
+const MODELS = {
+  BME280(g){                       // purple breakout, metal-lid sensor
+    g.add(pcbMesh(0.075, 0.06, 0x5b2a86, 'BME280'));
+    const can = new THREE.Mesh(new THREE.BoxGeometry(0.016,0.016,0.007), M({color:0xc9ced4, roughness:0.25, metalness:0.9}));
+    can.position.set(0.012, -0.004, 0.007); g.add(can);
+    const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.0015,0.0015,0.002,8), matBlack); hole.rotation.x = Math.PI/2; hole.position.set(0.016,0,0.011); g.add(hole);
+    headerPins(g, 6, 0.075, -0.024);
+    return { led:[-0.026,-0.004] };
+  },
+  TSL2561(g){                      // small blue breakout, clear 6-pin light sensor
+    g.add(pcbMesh(0.07, 0.055, 0x1d4f91, 'TSL2561'));
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.014,0.01,0.004), new THREE.MeshStandardMaterial({ color:0xd8e6ff, transparent:true, opacity:0.75, roughness:0.05 }));
+    win.position.set(0, -0.002, 0.006); g.add(win);
+    const die = new THREE.Mesh(new THREE.BoxGeometry(0.004,0.004,0.002), matGold); die.position.set(0,-0.002,0.006); g.add(die);
+    headerPins(g, 5, 0.07, -0.021);
+    return { led:[0.025,-0.004] };
+  },
+  'MQ-2'(g){                       // blue module, steel-mesh gas head, trim pot, two LEDs
+    g.add(pcbMesh(0.09, 0.06, 0x1f5fa8, 'MQ-2'));
+    const meshTex = canvasTex(64,64,(c,w,h)=>{ c.fillStyle='#b9bec4'; c.fillRect(0,0,w,h); c.fillStyle='#5d6268'; for(let y=0;y<h;y+=4) for(let x=(y/4%2)*2;x<w;x+=4) c.fillRect(x,y,2,2); }, 6, 2);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.008,28), M({color:0xb5652b, roughness:0.6}));
+    base.rotation.x = Math.PI/2; base.position.set(-0.012,0.002,0.008); g.add(base);
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.024,28,1,true), M({ map:meshTex, roughness:0.4, metalness:0.7, side:THREE.DoubleSide }));
+    head.rotation.x = Math.PI/2; head.position.set(-0.012,0.002,0.024); g.add(head);
+    const cap = new THREE.Mesh(new THREE.CircleGeometry(0.02,28), M({ map:meshTex, metalness:0.7, roughness:0.4 }));
+    cap.position.set(-0.012,0.002,0.036); g.add(cap);
+    const pot = new THREE.Mesh(new THREE.BoxGeometry(0.012,0.012,0.008), M({color:0x2a6fd6})); pot.position.set(0.03,0.012,0.008); g.add(pot);
+    const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.002,12), M({color:0xf2f2f2})); screw.rotation.x = Math.PI/2; screw.position.set(0.03,0.012,0.013); g.add(screw);
+    const pwr = new THREE.Mesh(new THREE.SphereGeometry(0.003,8,6), new THREE.MeshStandardMaterial({ color:0xff3b30, emissive:0xff3b30, emissiveIntensity:2 }));
+    pwr.position.set(0.03,-0.01,0.006); g.add(pwr);
+    headerPins(g, 4, 0.09, -0.024);
+    return { led:[0.03,-0.018] };
+  }
+};
+function sensorNode(id, model, keys, pos, normal){
+  const g = new THREE.Group(); g.userData = { kind:'sensor', id, model };
+  const inner = new THREE.Group(); inner.scale.setScalar(2.2); g.add(inner);
+  const { led:[lx,ly] } = MODELS[model](inner);
+  const ledMat = new THREE.MeshStandardMaterial({ color:0x2fbf71, emissive:0x2fbf71, emissiveIntensity:2.5 });
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.0045,12,8), ledMat); led.position.set(lx,ly,0.007); inner.add(led);
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(0.12,16,12), new THREE.MeshBasicMaterial({ color:0x2fbf71, transparent:true, opacity:0.1, depthWrite:false }));
+  g.add(halo);
+  g.traverse(o=>{ if (o.isMesh) o.castShadow = true; });
+  halo.castShadow = false;
+  g.position.copy(pos); scene.add(g);
+  const div = document.createElement('div'); div.className = 'tag';
+  const lbl = new CSS2DObject(div); scene.add(lbl);
+  const n = { id, model, g, ledMat, halo, div, lbl, keys, pos:g.position, normal:normal.clone(), def:[pos.clone(), normal.clone()] };
+  orientNode(n);
+  nodes.push(n); keys.forEach(k => sensorNodes[k] = n);
+  return n;
+}
+function orientNode(n){
+  n.g.lookAt(n.g.position.clone().add(n.normal));
+  n.lbl.position.copy(n.g.position).add(new THREE.Vector3(0,0.17,0));
+}
+sensorNode('bme',  'BME280',  ['temp','hum','pres'], new THREE.Vector3(X0+0.012, 1.5, 0.2),  new THREE.Vector3(1,0,0));
+sensorNode('tsl',  'TSL2561', ['light'],             new THREE.Vector3(2.75, 0.775, -2.95), new THREE.Vector3(0,1,0.001));
+sensorNode('mq2',  'MQ-2',    ['gas'],               new THREE.Vector3(-1.8, 2.3, Z0+0.012), new THREE.Vector3(0,0,1));
+const pickables = nodes.map(n=>n.g);
+
+/* temperature heatmap on the floor */
+const HW = 90, HD = 70;
+const heatCanvas = document.createElement('canvas'); heatCanvas.width = HW; heatCanvas.height = HD;
+const hctx = heatCanvas.getContext('2d');
+const heatTex = new THREE.CanvasTexture(heatCanvas); heatTex.colorSpace = THREE.SRGBColorSpace;
+const heat = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshBasicMaterial({ map:heatTex, transparent:true, opacity:0.5, depthWrite:false }));
+heat.rotation.x = -Math.PI/2; heat.position.y = 0.012; scene.add(heat);
+// absolute scale: 18 °C blue → 24 °C neutral grey → 30 °C red (hot is always red, cold always blue)
+const HEAT_MID = 24, HEAT_SPAN = 6;
+const DIV = [[-6,[47,111,219]],[-3,[127,166,230]],[0,[138,143,152]],[3,[231,144,122]],[6,[216,65,47]]];
+function divColor(d){
+  d = clamp(d,-HEAT_SPAN,HEAT_SPAN);
+  for(let i=0;i<DIV.length-1;i++){ const [a,ca]=DIV[i],[b,cb]=DIV[i+1]; if(d<=b){ const t=(d-a)/(b-a); return ca.map((c,j)=>c+(cb[j]-c)*t); } }
+  return DIV[DIV.length-1][1];
+}
+function tempAt(x, z){
+  const sunGain = daylight()*blindsVis;
+  let t = V.temp;
+  // warm near the window when sun comes in
+  const dw = z - Z0, inWin = (x>WX0-0.5 && x<WX1+0.5) ? 1 : 0.35;
+  t += sunGain*1.8*Math.exp(-dw/1.6)*inWin;
+  // cool plume under the AC cassette
+  if (act.hvac.on){ const d2 = (x-acPos.x)**2 + (z-acPos.z)**2; t -= 2.4*Math.exp(-d2/3.2); }
+  // slight warmth near the PC
+  const dp = (x-4.1)**2 + (z+2.85)**2; t += 0.6*Math.exp(-dp/0.6);
+  return t;
+}
+function drawHeat(){
+  const img = hctx.createImageData(HW, HD);
+  const bp = sensorNodes.temp.g.position, off = tempAt(bp.x, bp.z) - V.temp;   // field passes through the BME280 reading
+  for(let j=0;j<HD;j++) for(let i=0;i<HW;i++){
+    const x = X0 + (i+0.5)/HW*W, z = Z0 + (j+0.5)/HD*D;
+    const c = divColor(tempAt(x,z) - off - HEAT_MID), k = (j*HW+i)*4;
+    img.data[k]=c[0]; img.data[k+1]=c[1]; img.data[k+2]=c[2]; img.data[k+3]=255;
+  }
+  hctx.putImageData(img,0,0);
+  heatTex.needsUpdate = true;
+}
+// PlaneGeometry UV: v=1 at top (−z after rotation). Canvas row 0 → v=1 → z0. Matches tempAt mapping.
+
+/* particles: AC airflow + gas cloud */
+function makePoints(n, color, size){
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n*3), 3));
+  const mat = new THREE.PointsMaterial({ color, size, transparent:true, opacity:0, depthWrite:false, sizeAttenuation:true });
+  const p = new THREE.Points(geo, mat); p.frustumCulled = false; scene.add(p);
+  return { p, geo, mat, n, data: Array.from({length:n}, ()=>({ life:Math.random(), vx:0, vy:0, vz:0, x:0, y:0, z:0 })) };
+}
+const flow = makePoints(260, 0x8fd3ff, 0.05);
+const gasP = makePoints(420, 0xf0a500, 0.09);
+const gasSrc = new THREE.Vector3();
+function updateGasSrc(){ const n = sensorNodes.gas; gasSrc.copy(n.g.position).addScaledVector(n.normal, 0.8); gasSrc.y = clamp(gasSrc.y - 0.3, 0.3, H-0.3); }
+updateGasSrc();
+
+function resetFlow(d){
+  const side = Math.random()*4|0, s = (Math.random()-0.5)*0.5;
+  const dir = [[0,1],[0,-1],[1,0],[-1,0]][side];
+  d.x = acPos.x + dir[0]*0.32 + (dir[0]?0:s); d.z = acPos.z + dir[1]*0.32 + (dir[1]?0:s); d.y = H-0.1;
+  d.vx = dir[0]*0.9 + (Math.random()-0.5)*0.2; d.vz = dir[1]*0.9 + (Math.random()-0.5)*0.2; d.vy = -0.35 - Math.random()*0.3;
+  d.life = 0;
+}
+function resetGas(d, spread){
+  const r = Math.random()*spread, a = Math.random()*Math.PI*2, b = (Math.random()-0.5)*Math.PI;
+  d.x = gasSrc.x + Math.cos(a)*Math.cos(b)*r; d.y = clamp(gasSrc.y + Math.sin(b)*r*0.6, 0.1, H-0.1); d.z = gasSrc.z + Math.sin(a)*Math.cos(b)*r;
+  d.vx = (Math.random()-0.5)*0.15; d.vy = (Math.random()-0.5)*0.08; d.vz = (Math.random()-0.5)*0.15; d.life = Math.random();
+}
+flow.data.forEach(d=>{ resetFlow(d); d.life = Math.random(); });
+gasP.data.forEach(d=>resetGas(d, 1));
+
+function stepParticles(dt){
+  // airflow
+  const fOn = act.hvac.on && layers.flow;
+  flow.mat.opacity = lerp(flow.mat.opacity, fOn ? 0.55 : 0, 0.05);
+  const fa = flow.geo.attributes.position.array;
+  flow.data.forEach((d,i)=>{
+    d.life += dt*0.45; d.vy -= dt*0.05;
+    d.x += d.vx*dt; d.y += d.vy*dt; d.z += d.vz*dt; d.vx *= 0.995; d.vz *= 0.995;
+    if (d.life>1 || d.y<0.1) resetFlow(d);
+    fa[i*3]=d.x; fa[i*3+1]=d.y; fa[i*3+2]=d.z;
+  });
+  flow.geo.attributes.position.needsUpdate = true;
+  // gas
+  const lvl = clamp((V.gas - GAS_BASE)/(cfg.gasAlarm - GAS_BASE), 0, 1.4);
+  gasP.mat.opacity = layers.gas ? clamp(lvl*0.7, 0, 0.8) : 0;
+  gasP.mat.color.set(V.gas >= cfg.gasAlarm ? 0xff4d4f : 0xf0a500);
+  const spread = 0.6 + lvl*2.4;
+  const ga = gasP.geo.attributes.position.array;
+  gasP.data.forEach((d,i)=>{
+    d.life += dt*0.25;
+    if (act.vent.on){ // drift toward exhaust fan
+      const dx = fanPos.x-d.x, dy = fanPos.y-d.y, dz = fanPos.z-d.z, l = Math.hypot(dx,dy,dz)+0.001;
+      d.vx += dx/l*dt*0.6; d.vy += dy/l*dt*0.6; d.vz += dz/l*dt*0.6;
+      if (l < 0.3) resetGas(d, spread);
+    }
+    d.x += d.vx*dt + Math.sin(performance.now()/900 + i)*0.002; d.y += d.vy*dt; d.z += d.vz*dt;
+    d.vx *= 0.98; d.vy *= 0.98; d.vz *= 0.98;
+    if (d.life > 1) resetGas(d, spread);
+    d.x = clamp(d.x, X0+0.05, X1-0.05); d.z = clamp(d.z, Z0+0.05, Z1-0.05); d.y = clamp(d.y, 0.05, H-0.05);
+    ga[i*3]=d.x; ga[i*3+1]=d.y; ga[i*3+2]=d.z;
+  });
+  gasP.geo.attributes.position.needsUpdate = true;
+}
+
+/* ------------------------------------------------------------------ camera views */
+const VIEWS = {
+  photo:    { p:[-4.1, 1.75, 3.3], t:[1.4, 1.0, -2.6] },
+  overview: { p:[-7.5, 7.5, 8.0],  t:[0, 0.6, 0] },
+  top:      { p:[0, 12.5, 0.01],   t:[0, 0, 0] },
+  front:    { p:[4.2, 1.7, 2.9],   t:[-2.2, 0.9, -1.2] }
+};
+let tween = null;
+function goView(v){
+  const o = VIEWS[v]; if(!o) return;
+  tween = { p:new THREE.Vector3(...o.p), t:new THREE.Vector3(...o.t) };
+  document.querySelectorAll('#views button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+}
+camera.position.set(...VIEWS.photo.p); controls.target.set(...VIEWS.photo.t);
+$('#views').addEventListener('click', e=>{ const v = e.target.dataset.v; if(v) goView(v); });
+
+const layers = { heat:true, labels:true, flow:true, gas:true };
+$('#layers').addEventListener('click', e=>{
+  const l = e.target.dataset.l; if(!l) return;
+  layers[l] = !layers[l]; e.target.classList.toggle('on', layers[l]);
+  heat.visible = layers.heat; $('#legend').style.display = layers.heat ? '' : 'none';
+  $('#labels').style.display = layers.labels ? '' : 'none';
+});
+
+/* ------------------------------------------------------------------ pointer: click sensors / layout editor */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+const dragPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0), hitPt = new THREE.Vector3(), dragOff = new THREE.Vector3();
+let downAt = null, dragging = null, editMode = false, selected = null;
+const selBox = new THREE.BoxHelper(chairProto, 0xffd23f); selBox.visible = false; scene.add(selBox);
+const movables = () => chairs.concat(pickables);
+function setRay(e){
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX-r.left)/r.width*2-1, -(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(mouse, camera);
+}
+function pickFrom(list){
+  const hit = ray.intersectObjects(list, true)[0]; if (!hit) return null;
+  let o = hit.object; while (o.parent && !list.includes(o)) o = o.parent;
+  return list.includes(o) ? o : null;
+}
+const nodeOf = g => nodes.find(n => n.g === g);
+renderer.domElement.addEventListener('pointerdown', e=>{
+  downAt = [e.clientX, e.clientY];
+  if (!editMode) return;
+  setRay(e);
+  const o = pickFrom(movables());
+  if (o){
+    select(o); dragging = o; controls.enabled = false;
+    dragPlane.constant = -o.position.y;
+    if (ray.ray.intersectPlane(dragPlane, hitPt)) dragOff.copy(o.position).sub(hitPt);
+    renderer.domElement.setPointerCapture(e.pointerId);
+  }
+}, { capture:true });
+renderer.domElement.addEventListener('pointermove', e=>{
+  if (!dragging) return;
+  setRay(e);
+  if (!ray.ray.intersectPlane(dragPlane, hitPt)) return;
+  const m = dragging.userData.kind === 'chair' ? 0.3 : 0.012;
+  dragging.position.x = clamp(hitPt.x + dragOff.x, X0+m, X1-m);
+  dragging.position.z = clamp(hitPt.z + dragOff.z, Z0+m, Z1-m);
+  const n = nodeOf(dragging); if (n) n.lbl.position.copy(n.g.position).add(new THREE.Vector3(0,0.17,0));
+  editHint();
+});
+renderer.domElement.addEventListener('pointerup', e=>{
+  const moved = downAt && Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]) > 5;
+  if (dragging){
+    const n = nodeOf(dragging); if (n){ snapSensor(n); if (n.id==='mq2') updateGasSrc(); }
+    if (moved){ log(`${objName(dragging)} moved`); cloudSaveSoon(); }
+    dragging = null; controls.enabled = true; return;
+  }
+  if (moved) return;
+  setRay(e);
+  if (editMode){ select(null); return; }
+  const g = pickFrom(pickables);
+  if (g){ const n = nodeOf(g); if (n) focusSensor(n.keys[0]); }
+});
+function objName(o){ if (!o) return ''; const n = nodeOf(o); return n ? `${n.model} sensor` : `Chair #${chairs.indexOf(o)+1}`; }
+function select(o){ selected = o; selBox.visible = !!o; if (o) selBox.setFromObject(o); editHint(); }
+function editHint(){
+  const el = $('#editSel'); if (!el) return;
+  if (!selected){
+    el.textContent = 'Click a chair or sensor to select it, then drag it along the floor.';
+    ['#eRot','#eDel','#eDup','#eUp','#eDown'].forEach(id=>$(id).disabled = true); return;
+  }
+  const p = selected.position, n = nodeOf(selected);
+  el.textContent = `${objName(selected)} · x ${p.x.toFixed(2)} m, z ${p.z.toFixed(2)} m` + (n ? `, height ${p.y.toFixed(2)} m` : `, facing ${Math.round(THREE.MathUtils.radToDeg(selected.rotation.y)%360)}°`);
+  $('#eRot').disabled = !!n || !selected; $('#eDel').disabled = !!n; $('#eDup').disabled = !!n;
+  $('#eUp').disabled = !n; $('#eDown').disabled = !n;
+}
+// sensors stick to the nearest wall when dropped within 0.6 m of it; otherwise they lie flat facing up
+function snapSensor(n){
+  const p = n.g.position;
+  const d = [[p.x-X0,'L'],[X1-p.x,'R'],[p.z-Z0,'F'],[Z1-p.z,'N']].sort((a,b)=>a[0]-b[0])[0];
+  if (d[0] < 0.6){
+    const w = d[1];
+    if (w==='L'){ p.x = X0+0.012; n.normal.set(1,0,0); }
+    if (w==='R'){ p.x = X1-0.012; n.normal.set(-1,0,0); }
+    if (w==='F'){ p.z = Z0+0.012; n.normal.set(0,0,1); }
+    if (w==='N'){ p.z = Z1-0.012; n.normal.set(0,0,-1); }
+  } else n.normal.set(0,1,0.001);
+  orientNode(n); if (selected === n.g) select(n.g);
+}
+function editAction(a){
+  setTimeout(cloudSaveSoon, 0);
+  const s = selected, n = nodeOf(s);
+  if (a==='add'){
+    const t = controls.target, c = addChair(clamp(t.x,X0+0.4,X1-0.4), clamp(t.z,Z0+0.4,Z1-0.4), Math.PI/2);
+    select(c); log(`Chair added (${chairs.length} chairs)`);
+  }
+  if (!s) return;
+  if (a==='rot' && !n){ s.rotation.y += Math.PI/8; }
+  if (a==='dup' && !n){ const c = addChair(clamp(s.position.x+0.7,X0+0.3,X1-0.3), s.position.z, s.rotation.y); select(c); log(`Chair duplicated (${chairs.length} chairs)`); return; }
+  if (a==='del'){ if (n){ log('Sensors cannot be deleted — drag them where you want them','warn'); return; } removeChair(s); select(null); log(`Chair deleted (${chairs.length} chairs)`); return; }
+  if ((a==='up' || a==='down') && n){ s.position.y = clamp(s.position.y + (a==='up'?0.1:-0.1), 0.05, H-0.08); orientNode(n); if (n.id==='mq2') updateGasSrc(); }
+  if (a==='left' || a==='right' || a==='fwd' || a==='back'){
+    const m = n ? 0.012 : 0.3;
+    if (a==='left')  s.position.x = clamp(s.position.x-0.1, X0+m, X1-m);
+    if (a==='right') s.position.x = clamp(s.position.x+0.1, X0+m, X1-m);
+    if (a==='fwd')   s.position.z = clamp(s.position.z-0.1, Z0+m, Z1-m);
+    if (a==='back')  s.position.z = clamp(s.position.z+0.1, Z0+m, Z1-m);
+    if (n){ orientNode(n); if (n.id==='mq2') updateGasSrc(); }
+  }
+  select(s);
+}
+const LAYOUT_KEY = 'roomTwinLayout.v1';
+function layoutData(){
+  return {
+    chairs: chairs.map(c=>[+c.position.x.toFixed(2), +c.position.z.toFixed(2), +c.rotation.y.toFixed(3)]),
+    sensors: Object.fromEntries(nodes.map(n=>[n.id, [n.g.position.x, n.g.position.y, n.g.position.z, n.normal.x, n.normal.y, n.normal.z].map(v=>+v.toFixed(3))]))
+  };
+}
+function applyLayout(L){
+  [...chairs].forEach(removeChair);
+  (L.chairs || chairSpots.map(([x,z,r])=>[x,z,r])).forEach(([x,z,r])=>addChair(x,z,r));
+  nodes.forEach(n=>{
+    const v = L.sensors && L.sensors[n.id];
+    if (v){ n.g.position.set(v[0],v[1],v[2]); n.normal.set(v[3],v[4],v[5]); }
+    else { n.g.position.copy(n.def[0]); n.normal.copy(n.def[1]); }
+    orientNode(n);
+  });
+  updateGasSrc(); select(null);
+}
+function saveLayout(){
+  cloudSaveSoon();
+  try{ localStorage.setItem(LAYOUT_KEY, JSON.stringify(layoutData())); log(FB ? 'Layout saved (this browser + cloud)' : 'Layout saved in this browser'); }
+  catch{ log('Could not save here — use "Copy layout" instead', 'warn'); }
+}
+function loadLayout(){ try{ const t = localStorage.getItem(LAYOUT_KEY); if (t){ applyLayout(JSON.parse(t)); return true; } }catch{} return false; }
+function focusSensor(k){
+  const n = sensorNodes[k];
+  const p = n.pos.clone().add(n.normal.clone().multiplyScalar(1.6)).add(new THREE.Vector3(0.6,0.5,0.6));
+  p.x = clamp(p.x, X0+0.3, X1-0.3); p.z = clamp(p.z, Z0+0.3, Z1-0.3); p.y = clamp(p.y, 0.6, H-0.2);
+  tween = { p, t:n.pos.clone() };
+  document.querySelectorAll('#views button').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.tile').forEach(t=>t.classList.toggle('sel', t.dataset.k===k));
+}
+
+/* ------------------------------------------------------------------ UI: tiles & actuators */
+const tilesEl = $('#tiles');
+for (const k in SENS){
+  if (SENS[k].hidden) continue;
+  const t = document.createElement('div'); t.className = 'tile'; t.dataset.k = k;
+  t.innerHTML = `<div class="name"><span>${SENS[k].name} <em style="color:var(--muted);font-style:normal;font-size:11px">· ${SENS[k].chip}</em></span><span class="pill good" id="p_${k}">—</span></div>
+    <div class="val" id="v_${k}">—<small>${SENS[k].unit}</small></div>
+    <canvas id="c_${k}"></canvas><div class="hov" id="h_${k}"></div>`;
+  t.addEventListener('click', ()=>focusSensor(k));
+  tilesEl.appendChild(t);
+  const cv = t.querySelector('canvas');
+  cv.addEventListener('mousemove', e=>{
+    const r = cv.getBoundingClientRect(), arr = hist[k]; if(!arr.length) return;
+    const i = clamp(Math.round((e.clientX-r.left)/r.width*(HMAX-1)) - (HMAX-arr.length), 0, arr.length-1);
+    const ago = arr.length-1-i;
+    $('#h_'+k).textContent = `${arr[i].toFixed(SENS[k].dec)} ${SENS[k].unit} · ${ago}s ago`;
+    cv._hover = i;
+  });
+  cv.addEventListener('mouseleave', ()=>{ $('#h_'+k).textContent=''; cv._hover = null; });
+}
+function thresholdFor(k){
+  return k==='temp'?cfg.setpoint : k==='hum'?cfg.humMax : k==='light'?cfg.luxMin : cfg.gasWarn;
+}
+function drawSpark(k){
+  const cv = $('#c_'+k), dpr = devicePixelRatio||1;
+  const w = cv.clientWidth, h = cv.clientHeight; if(!w) return;
+  if (cv.width !== w*dpr){ cv.width = w*dpr; cv.height = h*dpr; }
+  const g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  const arr = hist[k]; if (arr.length < 2) return;
+  const th = thresholdFor(k);
+  let mn = Math.min(...arr, th), mx = Math.max(...arr, th); const pad = (mx-mn)*0.15 || 1; mn -= pad; mx += pad;
+  const X = i => (i + HMAX - arr.length)/(HMAX-1)*w, Y = v => h-2 - (v-mn)/(mx-mn)*(h-4);
+  g.strokeStyle = '#4b5563'; g.setLineDash([3,3]); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0,Y(th)); g.lineTo(w,Y(th)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = '#4aa3ff'; g.lineWidth = 2; g.lineJoin = 'round'; g.beginPath();
+  arr.forEach((v,i)=> i ? g.lineTo(X(i),Y(v)) : g.moveTo(X(i),Y(v))); g.stroke();
+  const hi = cv._hover ?? arr.length-1;
+  g.fillStyle = '#e9edf2'; g.strokeStyle = '#1b2028'; g.lineWidth = 2;
+  g.beginPath(); g.arc(X(hi), Y(arr[hi]), 3.5, 0, 7); g.fill(); g.stroke();
+}
+
+const ACTS = {
+  hvac:   { name:'HVAC (AC cassette)', modes:['auto','on','off'], st:()=> act.hvac.on ? '<b>Cooling / drying</b>' : 'Idle' },
+  lights: { name:'Ceiling lights', modes:['auto','on','off'], st:()=> act.lights.on ? '<b>On</b>' : 'Off' },
+  blinds: { name:'Roller blinds', modes:['auto','open','closed'], st:()=> `<b>${Math.round(act.blinds.open*100)}% open</b>` },
+  vent:   { name:'Exhaust ventilation', modes:['auto','on','off'], st:()=> act.vent.on ? '<b>Running</b>' : 'Off' }
+};
+for (const k in ACTS){
+  const d = document.createElement('div'); d.className = 'act';
+  d.innerHTML = `<div class="t">${ACTS[k].name}</div>
+    <div class="seg" id="seg_${k}">${ACTS[k].modes.map(m=>`<button data-m="${m}">${m[0].toUpperCase()+m.slice(1)}</button>`).join('')}</div>
+    <div class="s" id="st_${k}"></div>`;
+  d.querySelector('.seg').addEventListener('click', e=>{
+    const m = e.target.dataset.m; if(!m) return;
+    act[k].mode = m; log(`${ACTS[k].name} set to ${m.toUpperCase()} by operator`);
+    automate(); renderActs();
+  });
+  $('#acts').appendChild(d);
+}
+function renderActs(){
+  for (const k in ACTS){
+    document.querySelectorAll(`#seg_${k} button`).forEach(b=>b.classList.toggle('on', b.dataset.m===act[k].mode));
+    $('#st_'+k).innerHTML = (act[k].mode==='auto' ? 'Auto · ' : 'Manual · ') + ACTS[k].st();
+  }
+}
+
+/* ------------------------------------------------------------------ automation (BMS logic) */
+function setAct(k, field, val, why){
+  if (act[k][field] === val) return;
+  act[k][field] = val;
+  const what = field==='open' ? `${Math.round(val*100)}% open` : (val ? 'ON' : 'OFF');
+  log(`${ACTS[k].name} → ${what}${why ? ' ('+why+')' : ''}`, k==='vent' && val && S.gas>=cfg.gasAlarm ? 'crit' : '');
+  sendCmd(field==='open' ? { cmd:k, open:+val.toFixed(2) } : { cmd:k, on: val?1:0 });
+}
+function automate(){
+  const alarm = S.gas >= cfg.gasAlarm;
+  // HVAC
+  if (act.hvac.mode==='auto'){
+    if (S.temp > cfg.setpoint+0.5) setAct('hvac','on',true,'temp above setpoint');
+    else if (S.hum > cfg.humMax) setAct('hvac','on',true,'humidity high');
+    else if (S.temp < cfg.setpoint-0.5 && S.hum < cfg.humMax-3) setAct('hvac','on',false,'target reached');
+  } else setAct('hvac','on', act.hvac.mode==='on');
+  // Lights (hysteresis: estimate daylight-only lux when lamps are on)
+  if (act.lights.mode==='auto'){
+    // in simulation the lamps add LAMP_LUX to the reading; with real sensors the real lamps aren't driven, so use the raw reading
+    const dayOnly = S.light - (act.lights.on && source==='sim' ? LAMP_LUX : 0);
+    if (S.light < cfg.luxMin) setAct('lights','on',true,'light below minimum');
+    else if (act.lights.on && dayOnly > cfg.luxMin + 120) setAct('lights','on',false,'enough daylight');
+  } else setAct('lights','on', act.lights.mode==='on');
+  // Blinds
+  if (act.blinds.mode==='auto'){
+    if (lecture.on && daylight()>0.3) setAct('blinds','open',0.3,'projector glare');
+    else if (S.temp > cfg.setpoint+2 && daylight()>0.3) setAct('blinds','open',0.25,'solar gain');
+    else if (S.temp < cfg.setpoint+1) setAct('blinds','open',1,'');
+  } else setAct('blinds','open', act.blinds.mode==='open' ? 1 : 0);
+  // Ventilation — forced on at alarm regardless of mode
+  if (alarm) setAct('vent','on',true,'GAS ALARM');
+  else if (act.vent.mode==='auto'){
+    if (S.gas >= cfg.gasWarn || S.hum > cfg.humMax+8) setAct('vent','on',true, S.gas>=cfg.gasWarn ? 'gas warning' : 'humidity');
+    else if (S.gas < cfg.gasWarn*0.85 && S.hum < cfg.humMax+4) setAct('vent','on',false,'air clean');
+  } else setAct('vent','on', act.vent.mode==='on');
+  renderActs();
+}
+
+/* ------------------------------------------------------------------ simulation model */
+function daylight(){ // 0..1 from time of day (sunrise 6, sunset 18)
+  const t = sim.tod; if (t<6 || t>18) return 0;
+  return Math.sin((t-6)/12*Math.PI) ** 0.7;
+}
+function simStep(dt){
+  const out = sim.heat ? 41 : 31;
+  const sunIn = daylight()*blindsVis;
+  S.temp += ((out - S.temp)*0.004 + sunIn*0.035 - (act.hvac.on ? 0.11 : 0) + (act.vent.on ? (out-S.temp)*0.003 : 0))*dt + noise(0.015);
+  const humTarget = sim.humid ? 82 : 54;
+  S.hum += ((humTarget - S.hum)*0.01 - (act.hvac.on ? 0.14 : 0) + (act.vent.on ? (50-S.hum)*0.006 : 0))*dt + noise(0.08);
+  S.hum = clamp(S.hum, 20, 98);
+  S.light = Math.max(0, daylight()*blindsVis*640 + (act.lights.on ? LAMP_LUX : 0) + 12 + noise(5));
+  if (sim.leak) S.gas += 48*dt;
+  S.gas += (GAS_BASE - S.gas)*(act.vent.on ? 0.09 : 0.006)*dt + noise(2);
+  S.gas = Math.max(60, S.gas);
+  S.pres += (1012.6 - S.pres)*0.02*dt + noise(0.04);
+  if (sim.fault && sim.frozen){ S.temp = sim.frozen.temp; S.hum = sim.frozen.hum; S.light = sim.frozen.light; }   // frozen BME280, silent TSL2561
+}
+
+/* ------------------------------------------------------------------ hardware connections */
+let port, reader, writer, readClosed, writeClosed, ws, pollTimer;
+const srcSel = $('#src');
+srcSel.addEventListener('change', ()=>{
+  const v = srcSel.value;
+  $('#rowBaud').hidden = v!=='serial';
+  $('#rowUrl').hidden = !(v==='ws' || v==='http');
+  if (v==='ws' && !$('#url').value.startsWith('ws')) $('#url').value = 'ws://192.168.1.50:81/';
+  if (v==='http' && !$('#url').value.startsWith('http')) $('#url').value = 'http://192.168.1.50/data';
+  $('#connect').textContent = v==='sim' ? 'Start' : 'Connect';
+});
+function setConn(kind, text){ $('#cdot').className = 'dot '+kind; $('#ctext').textContent = text; }
+async function disconnect(){
+  clearInterval(pollTimer); pollTimer = null;
+  if (ws){ try{ ws.onclose = null; ws.close(); }catch{} ws = null; }
+  if (port){
+    try{ await reader?.cancel(); await readClosed; }catch{}
+    try{ await writer?.close(); await writeClosed; }catch{}
+    try{ await port.close(); }catch{}
+    port = reader = writer = null;
+  }
+}
+$('#connect').addEventListener('click', async ()=>{
+  if (source==='replay') $('#rpExit').click();
+  await disconnect();
+  const kind = srcSel.value;
+  $('#simBox').style.display = kind==='sim' ? '' : 'none';
+  if (kind==='sim'){ source='sim'; setConn('sim','Simulation running'); log('Switched to simulation'); return; }
+  source = kind; lastRx = 0; rxCount = 0; connStart = performance.now();
+  try{
+    if (kind==='serial'){
+      if (!('serial' in navigator)) throw new Error('Web Serial is not available here — open this file on your laptop in Chrome or Edge.');
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: +$('#baud').value });
+      const dec = new TextDecoderStream(); readClosed = port.readable.pipeTo(dec.writable).catch(()=>{}); reader = dec.readable.getReader();
+      const enc = new TextEncoderStream(); writeClosed = enc.readable.pipeTo(port.writable).catch(()=>{}); writer = enc.writable.getWriter();
+      setConn('ok','USB serial connected — waiting for data'); log('USB serial port opened');
+      (async ()=>{ let buf=''; try{ while(true){ const {value,done} = await reader.read(); if(done) break; buf += value; const lines = buf.split(/\r?\n/); buf = lines.pop(); lines.forEach(parseLine); } }catch(e){ setConn('err','Serial closed: '+e.message); } })();
+    } else if (kind==='ws'){
+      const url = $('#url').value.trim();
+      ws = new WebSocket(url);
+      setConn('sim','Connecting to '+url+' …');
+      ws.onopen = ()=>{ setConn('ok','WebSocket connected'); log('WebSocket connected: '+url); };
+      ws.onmessage = e => String(e.data).split(/\r?\n/).forEach(parseLine);
+      ws.onerror = ()=> setConn('err','WebSocket error — check the IP, port and that you are on the same Wi-Fi');
+      ws.onclose = ()=> setConn('err','WebSocket closed');
+    } else if (kind==='http'){
+      const url = $('#url').value.trim();
+      const poll = async ()=>{ try{ const r = await fetch(url, {cache:'no-store'}); const t = await r.text(); t.split(/\r?\n/).forEach(parseLine); if (rxCount) setConn('ok','Polling '+url); }catch(e){ setConn('err','HTTP error: '+e.message+' (CORS or network)'); } };
+      poll(); pollTimer = setInterval(poll, 1000);
+      setConn('sim','Polling '+url+' …');
+    }
+  }catch(e){ setConn('err', e.message); log('Connection failed: '+e.message, 'warn'); }
+});
+async function sendCmd(obj){
+  const line = JSON.stringify(obj);
+  try{
+    if (source==='serial' && writer) await writer.write(line+'\n');
+    else if (source==='ws' && ws && ws.readyState===1) ws.send(line);
+    else if (source==='http'){ fetch($('#url').value.trim().replace(/\/data\/?$/,'')+'/cmd', { method:'POST', body:line, headers:{'Content-Type':'application/json'} }).catch(()=>{}); }
+  }catch{}
+}
+const KEYS = {
+  temp:['temp','temperature','t','tmp','tc'],
+  hum:['hum','humidity','h','rh'],
+  light:['light','lux','ldr','l','lum','lumen','brightness'],
+  gas:['gas','mq','mq2','mq-2','mq135','mq5','ppm','g','smoke','co','air','lpg'],
+  pres:['pres','pressure','p','hpa','baro']
+};
+function parseLine(line){
+  line = String(line).trim(); if (!line) return;
+  $('#raw').textContent = '↳ ' + line;
+  if (line[0]==='#') return;                       // comment / status lines from the board
+  let obj = null;
+  if (line[0]==='{'){ try{ obj = JSON.parse(line); }catch{} }
+  if (obj){ for (const [k,v] of Object.entries(obj)) if (v && typeof v==='object') Object.assign(obj, v); }
+  if (!obj){
+    const kv = [...line.matchAll(/([a-zA-Z][\w-]*)\s*[:=]\s*(-?\d+(?:\.\d+)?)/g)];
+    if (kv.length){ obj = {}; kv.forEach(m=>obj[m[1]] = +m[2]); }
+  }
+  if (!obj){
+    const nums = line.split(/[,;\s]+/).map(Number).filter(n=>!isNaN(n));
+    if (nums.length >= 4) obj = { temp:nums[0], hum:nums[1], light:nums[2], gas:nums[3] }; else return;
+  }
+  const lower = {}; for (const k in obj) lower[k.toLowerCase()] = obj[k];
+  let got = 0;
+  for (const k in KEYS) for (const a of KEYS[k]) if (a in lower && isFinite(+lower[a])){ S[k] = +lower[a]; lastKey[k] = performance.now(); got++; break; }
+  if (got){ lastRx = performance.now(); rxCount++; }
+}
+
+/* ------------------------------------------------------------------ controls wiring */
+function bindSlider(id, out, fmt, set){
+  const el = $(id); const upd = ()=>{ set(+el.value); $(out).textContent = fmt(+el.value); };
+  el.addEventListener('input', ()=>{ upd(); automate(); }); upd();
+}
+bindSlider('#cSp','#oSp', v=>v.toFixed(1)+'°', v=>{ cfg.setpoint=v; });
+bindSlider('#cHum','#oHum', v=>v+'%', v=>cfg.humMax=v);
+bindSlider('#cLux','#oLux', v=>v+' lx', v=>cfg.luxMin=v);
+bindSlider('#cGw','#oGw', v=>v, v=>cfg.gasWarn=v);
+bindSlider('#cGa','#oGa', v=>v, v=>cfg.gasAlarm=v);
+bindSlider('#cTod','#oTod', v=>`${String(Math.floor(v)).padStart(2,'0')}:${String(Math.round(v%1*60)).padStart(2,'0')}`, v=>sim.tod=v);
+bindSlider('#cSpd','#oSpd', v=>'×'+v, v=>sim.speed=v);
+function scen(id, key, msg){
+  $(id).addEventListener('click', e=>{ sim[key] = !sim[key]; e.currentTarget.classList.toggle('on', sim[key]); log(`Scenario: ${msg} ${sim[key]?'started':'stopped'}`, sim[key]?'warn':''); });
+}
+scen('#sLeak','leak','gas leak'); scen('#sHeat','heat','heat wave'); scen('#sHumid','humid','humid day'); scen('#sFault','fault','sensor fault');
+$('#sFault').addEventListener('click', ()=>{ if (sim.fault){ sim.faultAt = simClock; sim.frozen = { temp:S.temp, hum:S.hum, light:S.light }; } else sim.frozen = null; });
+$('#sReset').addEventListener('click', ()=>{
+  Object.assign(S, { temp:24.2, hum:52, light:430, gas:GAS_BASE, pres:1012.6 }); Object.assign(sim, { leak:false, heat:false, humid:false, fault:false, frozen:null });
+  document.querySelectorAll('.scen .btn').forEach(b=>b.classList.remove('on'));
+  for (const k in act) act[k].mode = 'auto';
+  for (const k in hist) hist[k].length = 0;
+  log('Simulation reset'); automate();
+});
+
+/* ------------------------------------------------------------------ log */
+let lastAlarm = false;
+function log(msg, cls=''){
+  const li = document.createElement('li'); if (cls) li.className = cls;
+  const t = new Date().toLocaleTimeString([], {hour12:false});
+  li.innerHTML = `<time>${t}</time><span></span>`; li.lastChild.textContent = msg;
+  $('#log').prepend(li); while ($('#log').children.length > 60) $('#log').lastChild.remove();
+}
+
+/* ------------------------------------------------------------------ tick (1 Hz data) */
+let simAcc = 0;
+function tick(){
+  let dt = 1;
+  if (source==='sim'){ for (let i=0;i<sim.speed;i++) simStep(1); dt = sim.speed; }
+  else if (source==='replay') dt = replayStep();
+  if (source==='replay' && replay.hasActs) renderActs(); else automate();
+  simClock += dt;
+  for (const k in S){ hist[k].push(S[k]); if (hist[k].length > HMAX) hist[k].shift(); }
+  for (const k in SENS){
+    if (SENS[k].hidden) continue;
+    const st = status(k);
+    $('#v_'+k).firstChild.textContent = S[k].toFixed(SENS[k].dec);
+    const p = $('#p_'+k); p.className = 'pill '+st; p.textContent = STATUS_TXT[k][st];
+    drawSpark(k);
+  }
+  // 3D labels + LED colors
+  for (const n of nodes){
+    const sts = n.keys.map(status), worst = sts.includes('crit') ? 'crit' : sts.includes('warn') ? 'warn' : 'good';
+    const col = STATUS_COL[worst];
+    n.ledMat.color.set(col); n.ledMat.emissive.set(col); n.halo.material.color.set(col);
+    n.div.innerHTML = `<b style="color:#c9b6ff">${n.model}</b>&nbsp; ` + n.keys.map(kk=>`<i style="background:${STATUS_COL[status(kk)]}"></i>${S[kk].toFixed(SENS[kk].dec)}<span>${SENS[kk].unit}</span>`).join('&nbsp;&nbsp;');
+  }
+  const alarm = S.gas >= cfg.gasAlarm;
+  $('#alarm').classList.toggle('show', alarm);
+  if (alarm && !lastAlarm) log(`GAS ALARM: ${S.gas.toFixed(0)} ppm ≥ ${cfg.gasAlarm}`, 'crit');
+  if (!alarm && lastAlarm) log('Gas level back below alarm threshold');
+  lastAlarm = alarm;
+  if (source!=='sim' && source!=='replay'){
+    const ago = lastRx ? (performance.now()-lastRx)/1000 : Infinity;
+    if (lastRx && ago > 5) setConn('err', `No data for ${ago.toFixed(0)} s`);
+    else if (lastRx) setConn('ok', `Live · ${rxCount} messages received`);
+  }
+  const rr = source==='replay' && replay.rows[replay.idx];
+  const hh = source==='sim' ? $('#oTod').textContent : rr ? (rr.t ? stamp(rr.t) : 'row '+(replay.idx+1)) : new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false});
+  const mode = source==='sim' ? 'SIMULATED' : source==='replay' ? 'REPLAY' : 'LIVE';
+  $('#clock').innerHTML = `Room ${currentRoom} · ${mode} · ${hh}<br>HVAC ${act.hvac.on?'ON':'off'} · Lights ${act.lights.on?'ON':'off'} · Vent ${act.vent.on?'ON':'off'} · Projector ${lecture.on?'ON':'off'}`;
+  drawHeat();
+  if (source !== 'replay') logRow();
+  energyTick(dt); renderEnergy();
+  insightsTick(dt);
+  renderRecs();
+  alertsTick();
+  reportTick();
+  lectureTick();
+}
+
+/* ------------------------------------------------------------------ render loop */
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h); labelRenderer.setSize(w, h);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  for (const k in SENS) if (!SENS[k].hidden) drawSpark(k);
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+const clock = new THREE.Clock();
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05), now = performance.now()/1000;
+  for (const k in S) V[k] = lerp(V[k], S[k], 0.06);
+  blindsVis = lerp(blindsVis, act.blinds.open, 0.03); setBlinds(blindsVis);
+
+  // daylight & sun position
+  const dl = source==='sim' ? daylight() : (()=>{ const h = new Date().getHours()+new Date().getMinutes()/60; return (h<6||h>18)?0:Math.sin((h-6)/12*Math.PI)**0.7; })();
+  const tod = source==='sim' ? sim.tod : new Date().getHours();
+  const az = (tod-12)/12*Math.PI*0.9;
+  sun.position.set(2.3 + Math.sin(az)*6, 3.2 + dl*4.5, Z0-8);
+  sun.target.position.set(1.5, 0, 0);
+  sun.intensity = dl*3.4*blindsVis;
+  matOutside.color.setScalar(0.12 + dl*0.88);
+  hemi.intensity = 0.25 + dl*0.35*blindsVis;
+
+  // lighting reacts to lights state + measured lux (exposure)
+  const lampK = act.lights.on ? 1 : 0;
+  roomLights.forEach(l => l.intensity = lerp(l.intensity, lampK*11, 0.08));
+  lampMats.forEach(m => m.emissiveIntensity = lerp(m.emissiveIntensity, act.lights.on ? 1.6 : 0.03, 0.08));
+  renderer.toneMappingExposure = lerp(renderer.toneMappingExposure, 0.6 + clamp(V.light/900,0,1)*0.55, 0.05);
+
+  // humidity haze
+  scene.fog.density = clamp((V.hum-45)/45, 0, 1)*0.07;
+
+  // HVAC / vent / alarm visuals
+  acVentMat.emissiveIntensity = lerp(acVentMat.emissiveIntensity, act.hvac.on ? 1.2 : 0, 0.06);
+  if (act.vent.on) fan.rotation.z -= dt*14;
+  const alarm = V.gas >= cfg.gasAlarm;
+  alarmLight.intensity = alarm ? (Math.sin(now*8)*0.5+0.5)*14 : 0;
+  for (const n of nodes) n.halo.scale.setScalar(1 + Math.sin(now*3)*0.15);
+
+  stepParticles(dt);
+  if (selected) selBox.setFromObject(selected);
+
+  if (tween){
+    camera.position.lerp(tween.p, 0.07); controls.target.lerp(tween.t, 0.07);
+    if (camera.position.distanceTo(tween.p) < 0.02) tween = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+controls.addEventListener('start', ()=>{ tween = null; });
+
+/* ------------------------------------------------------------------ CSV data logging */
+const CSV_HEAD = 'timestamp,source,temp_C,humidity_pct,pressure_hPa,light_lux,gas_ppm,hvac,lights,blinds_open_pct,ventilation,temp_status,humidity_status,light_status,gas_status';
+const rows = [], MAX_ROWS = 200000;
+let logEvery = 1, logCount = 0, fileHandle = null, filePending = '', fileBusy = false, fileRows = 0;
+const pad2 = n => String(n).padStart(2,'0');
+function stamp(d = new Date()){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; }
+function csvRow(){
+  const live = source !== 'sim';
+  if (live && (!lastRx || performance.now()-lastRx > 5000)) return null;     // don't log stale values
+  return [stamp(), live ? source : 'simulation',
+    S.temp.toFixed(1), S.hum.toFixed(1), S.pres.toFixed(1), S.light.toFixed(0), S.gas.toFixed(0),
+    act.hvac.on?1:0, act.lights.on?1:0, Math.round(act.blinds.open*100), act.vent.on?1:0,
+    status('temp'), status('hum'), status('light'), status('gas')].join(',');
+}
+function logRow(){
+  if (++logCount < logEvery) return; logCount = 0;
+  const r = csvRow(); if (!r) return;
+  rows.push(r); if (rows.length > MAX_ROWS) rows.shift();
+  if (fileHandle){ filePending += r + '\n'; }
+  recStatus();
+}
+function recStatus(msg){
+  $('#recDot').classList.toggle('on', !!fileHandle);
+  $('#recBtn').textContent = fileHandle ? '■ Stop recording' : '● Record to file';
+  $('#recText').textContent = msg || (`${rows.length.toLocaleString()} rows in memory · ` +
+    (fileHandle ? `recording to ${fileHandle.name} (${fileRows.toLocaleString()} rows saved)` : 'not recording to a file'));
+}
+async function flushFile(){
+  if (!fileHandle || !filePending || fileBusy) return;
+  fileBusy = true; const chunk = filePending; filePending = '';
+  try{
+    const f = await fileHandle.getFile();
+    const w = await fileHandle.createWritable({ keepExistingData:true });
+    await w.seek(f.size); await w.write(chunk); await w.close();
+    fileRows += chunk.split('\n').length - 1; recStatus();
+  }catch(e){ filePending = chunk + filePending; recStatus('Could not write to the file: ' + e.message); }
+  fileBusy = false;
+}
+setInterval(flushFile, 5000);
+$('#recBtn').addEventListener('click', async ()=>{
+  if (fileHandle){ await flushFile(); log(`CSV recording stopped — ${fileRows} rows in ${fileHandle.name}`); fileHandle = null; recStatus(); return; }
+  if (!window.showSaveFilePicker){ recStatus('Recording to a file needs Chrome or Edge with index.html opened from your computer. Use Download CSV instead.'); return; }
+  try{
+    const d = new Date();
+    fileHandle = await window.showSaveFilePicker({ suggestedName:`room-readings_${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}.csv`,
+      types:[{ description:'CSV file', accept:{ 'text/csv':['.csv'] } }] });
+    const w = await fileHandle.createWritable(); await w.write(CSV_HEAD + '\n' + rows.join('\n') + (rows.length ? '\n' : '')); await w.close();
+    fileRows = rows.length; filePending = '';
+    log(`CSV recording started → ${fileHandle.name}`); recStatus();
+  }catch(e){
+    fileHandle = null;
+    if (e.name !== 'AbortError') recStatus('Recording to a file is blocked here — open index.html from your computer in Chrome/Edge, or use Download CSV.');
+  }
+});
+function csvText(){ return CSV_HEAD + '\n' + rows.join('\n') + '\n'; }
+let platformDl = null;   // the shared claude.ai page provides its own save dialog; locally this stays null
+if (window.claude && window.claude.use) window.claude.use('downloads').then(d=>{ platformDl = d; }).catch(()=>{});
+$('#dlBtn').addEventListener('click', async ()=>{
+  const name = `room-readings_${stamp().replace(/[: ]/g,'-')}.csv`;
+  if (platformDl){
+    try{ await platformDl.save({ filename:name, data:csvText() }); log(`CSV downloaded (${rows.length} rows)`); recStatus(); }
+    catch(e){ recStatus('Download was cancelled or blocked — try Copy CSV.'); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([csvText()], { type:'text/csv' }));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  log(`CSV downloaded (${rows.length} rows)`);
+  recStatus(`${rows.length.toLocaleString()} rows downloaded to your Downloads folder.`);
+});
+$('#cpBtn').addEventListener('click', async ()=>{
+  try{ await navigator.clipboard.writeText(csvText()); log(`CSV copied (${rows.length} rows)`); recStatus(`${rows.length.toLocaleString()} rows copied — paste into Excel or a .csv file`); }
+  catch{ $('#textTitle').textContent = 'Readings (CSV)'; $('#textMsg').textContent = 'Clipboard is blocked here: click in the box, press Ctrl+A then Ctrl+C.'; $('#textTxt').value = csvText(); $('#textDlg').hidden = false; }
+});
+$('#textClose').addEventListener('click', ()=>{ $('#textDlg').hidden = true; $('#logoutDlg').hidden = true; });
+$('#clrBtn').addEventListener('click', ()=>{ rows.length = 0; log('CSV memory cleared (the file on disk is kept)'); recStatus(); });
+$('#logEvery').addEventListener('change', e=>{ logEvery = +e.target.value; logCount = 0; log(`Logging every ${e.target.selectedOptions[0].text}`); });
+
+/* ------------------------------------------------------------------ recommendations */
+const SEV_TXT = { crit:'Critical', warn:'Warning', info:'Tip', ok:'All good' }, SEV_RANK = { crit:0, warn:1, info:2, ok:3 };
+function forceMode(k, m, why){ act[k].mode = m; log(`${ACTS[k].name} set to ${m.toUpperCase()} from recommendation${why?': '+why:''}`); automate(); }
+function setSetpoint(v){ const el = $('#cSp'); el.value = clamp(v, 18, 28); el.dispatchEvent(new Event('input')); log(`Setpoint changed to ${(+el.value).toFixed(1)} °C from recommendation`); }
+function toSim(){ $('#src').value = 'sim'; $('#src').dispatchEvent(new Event('change')); $('#connect').click(); }
+/* Each recommendation:
+   t = what is happening · best = the best option · a = button for it · why = why it is the best option
+   steps = how to act, in order · alts = other options [{t: option + trade-off, a?: button}] */
+function recommendations(){
+  const R = [], live = source !== 'sim', sp = cfg.setpoint, f1 = v => v.toFixed(1), f0 = v => v.toFixed(0);
+  const day = live ? 1 : daylight();
+  const ago = lastRx ? (performance.now()-lastRx)/1000 : Infinity;
+  const btn = (label, fn) => ({ label, fn });
+
+  if (live && ago > 5) R.push({ id:'nodata', sev:'crit',
+    t: lastRx ? `No data from the board for ${f0(ago)} s` : 'Waiting for the first reading from the board',
+    best:'Fix the USB link and reconnect — the BMS is blind until data comes back.',
+    why:'Every rule (AC, lights, fan, gas alarm) runs on fresh readings. With no data the twin keeps the last values and can miss a real problem.',
+    steps:['Look at the grey ↳ line under the status: if it is empty, nothing is arriving at all.',
+      'Close the Arduino Serial Monitor (only one program can use the port).',
+      'Unplug and replug the USB cable, then press the board’s EN/RST button.',
+      'Press Connect again and pick the board’s port. Check baud is 115200.',
+      'Still nothing? Open the Serial Monitor alone to see whether the board prints lines.'],
+    alts:[{ t:'Switch to Simulation so the presentation can continue while you fix it.', a:btn('Go to simulation', toSim) }] });
+
+  if (live && lastRx && performance.now()-connStart < 180000) R.push({ id:'warm', sev:'info',
+    t:'MQ-2 may still be warming up',
+    best:'Wait about 3 minutes before trusting the gas reading.',
+    why:'The MQ-2 has a small heater. Until it is hot its resistance drifts, so gas can read high or jumpy and trigger false warnings.',
+    steps:['Leave the board powered and the sensor in clean air.', 'Watch the gas tile: when the line flattens, it is ready.', 'If it was calibrated in dirty air, press the board’s reset button in clean air.'],
+    alts:[{ t:'For a demo, raise the gas warning level temporarily — remember to set it back.' }] });
+
+  const fresh = !live || ago <= 5;
+  if (fresh){
+    // ---------------- gas
+    if (S.gas >= cfg.gasAlarm) R.push({ id:'gasA', sev:'crit',
+      t:`Gas alarm: ${f0(S.gas)} ppm (alarm level ${cfg.gasAlarm})`,
+      best:'Evacuate the room now and keep everyone out.',
+      why:'The MQ-2 reacts to LPG, natural gas and smoke. At this level a spark from a switch or phone could ignite a gas leak — people’s safety comes before any equipment.',
+      steps:['Tell everyone to leave calmly; do not run or use the lift.',
+        'Do not switch lights or devices on or off, and do not light anything.',
+        'Open windows and the door on the way out, only if it is safe.',
+        'Close the gas supply valve if you know where it is.',
+        'Call building security. In Egypt: gas emergency 129, fire brigade 180.',
+        'Return only after the reading stays below the warning level for several minutes.'],
+      alts:[{ t:'If you see smoke or fire instead of smelling gas: press the fire alarm and use the nearest exit.' },
+        { t:'Engineering note: the BMS forced the exhaust fan on. In a real building that fan must be explosion-proof.' }] });
+    else if (S.gas >= cfg.gasWarn) R.push({ id:'gasW', sev:'warn',
+      t:`Gas or smoke rising: ${f0(S.gas)} ppm (warning at ${cfg.gasWarn})`,
+      best: act.vent.on ? 'Keep ventilating and find the source.' : 'Start ventilation, then find the source.',
+      a: act.vent.on ? null : btn('Start ventilation', ()=>forceMode('vent','on','gas rising')),
+      why:'Catching a leak at the warning stage lets you fix it before it reaches a dangerous level. Fresh air lowers the concentration while you look.',
+      steps:['Sniff near the floor and near any gas pipe, heater or cooker (LPG sinks; smoke rises).',
+        'Check for smoke, burning smells, solvents, sprays or a lighter near the MQ-2.',
+        'Open a window for extra fresh air.',
+        'Watch the gas tile for 2 minutes: falling = fine; still rising = treat it as an alarm and leave.'],
+      alts:[{ t:'If the MQ-2 was just powered on, it may be warming up — wait 3 minutes before acting.' }] });
+
+    // ---------------- temperature
+    const hot = S.temp > sp + 1.5, veryHot = S.temp > 30;
+    if (hot || veryHot){
+      const acOff = act.hvac.mode === 'off', blindsOpen = act.blinds.open > 0.3 && day > 0.3;
+      R.push({ id: veryHot ? 'tHot2' : 'tHot', sev: veryHot ? 'crit' : 'warn',
+        t:`${veryHot ? 'Room too hot' : 'Room is warm'}: ${f1(S.temp)} °C — ${f1(S.temp-sp)} °C above the ${f1(sp)} °C setpoint`,
+        best: acOff ? 'Put the AC back on Auto.' : blindsOpen ? 'Close the blinds.' : 'Let the AC run and keep doors and windows closed.',
+        a: acOff ? btn('AC to Auto', ()=>forceMode('hvac','auto','room warm')) : blindsOpen ? btn('Close blinds', ()=>forceMode('blinds','closed','solar gain')) : null,
+        why: acOff ? 'The AC was switched off by hand, so nothing is cooling the room. Auto cools only while needed.'
+          : blindsOpen ? 'Sun through the windows is free heat you are paying the AC to remove. Blocking it costs nothing and helps the AC reach the setpoint faster.'
+          : 'The AC is already cooling. Hot air leaking in through open doors or windows is the most common reason it can’t catch up.',
+        steps:[ acOff ? 'Press “AC to Auto”.' : 'Make sure the HVAC tile says Cooling.',
+          'Close windows and the door.', blindsOpen ? 'Close the blinds on the sunny side.' : 'Keep the blinds down while the sun is on the window.',
+          'Wait 10–15 minutes and watch the temperature line fall.',
+          'Still not falling? Check the AC filter and that cold air comes out of the vents.'],
+        alts:[{ t:'Lower the setpoint by 1 °C: cools faster, but costs several percent more energy for every degree.', a:btn('Setpoint −1 °C', ()=>setSetpoint(sp-1)) },
+          { t:'If people feel fine at this temperature, raise the setpoint instead and save energy.', a:btn('Setpoint +1 °C', ()=>setSetpoint(sp+1)) }] });
+    } else if (S.temp < sp - 1.5 || S.temp < 16){
+      const acOn = act.hvac.on, canSun = act.blinds.open < 0.9 && day > 0.3;
+      R.push({ id: S.temp < 16 ? 'tCold2' : 'tCold', sev: S.temp < 16 ? 'crit' : 'warn',
+        t:`Room is ${S.temp < 16 ? 'too cold' : 'cool'}: ${f1(S.temp)} °C — ${f1(sp-S.temp)} °C below setpoint`,
+        best: acOn ? 'Switch the AC to Auto — it is over-cooling.' : canSun ? 'Open the blinds to let the sun warm the room.' : 'Close windows; raise the setpoint if people are cold.',
+        a: acOn ? btn('AC to Auto', ()=>forceMode('hvac','auto','over-cooling')) : canSun ? btn('Open blinds', ()=>forceMode('blinds','open','warm the room')) : null,
+        why: acOn ? 'Cooling a room that is already below target wastes energy and makes people uncomfortable.' : 'Sunlight is free heating; the AC in this room only cools.',
+        steps:[ acOn ? 'Press “AC to Auto” (or Off).' : 'Check the AC is not running.', 'Close windows and doors.', canSun ? 'Open the blinds during daytime.' : 'Keep the blinds open in daytime.', 'Watch the temperature for 15 minutes.'],
+        alts:[{ t:'Raise the setpoint 1 °C so the AC starts later and saves energy.', a:btn('Setpoint +1 °C', ()=>setSetpoint(sp+1)) }] });
+    }
+
+    // ---------------- humidity
+    if (S.hum > cfg.humMax){
+      const acOff = act.hvac.mode === 'off', veryHumid = S.hum > 80;
+      R.push({ id: veryHumid ? 'hHi2' : 'hHi', sev: veryHumid ? 'crit' : 'warn',
+        t:`Humidity ${veryHumid ? 'very ' : ''}high: ${f0(S.hum)} % (limit ${cfg.humMax} %)`,
+        best: acOff ? 'Put the AC back on Auto — it dries the air.' : 'Keep the AC running and close doors and windows.',
+        a: acOff ? btn('AC to Auto', ()=>forceMode('hvac','auto','humidity')) : null,
+        why:'Above about 65 % air feels stuffy, and mould and condensation start. The AC removes water while it cools; humid outside air coming in undoes that.',
+        steps:['Close windows and the door.', acOff ? 'Press “AC to Auto”.' : 'Check the HVAC tile says Cooling / drying.',
+          'Look for wet floors, leaking pipes or a dripping AC.', 'Watch the humidity line for 15 minutes.'],
+        alts:[{ t:'Run the exhaust fan — only helps if the outside air is drier than inside.', a: act.vent.on ? null : btn('Start ventilation', ()=>forceMode('vent','on','humidity')) },
+          { t:'Raise the humidity limit if 65–70 % is normal for the season — fewer AC hours.' }] });
+    } else if (S.hum < 30) R.push({ id:'hLo', sev:'info',
+      t:`Air is dry: ${f0(S.hum)} %`,
+      best:'Run the AC less, or add a small humidifier.',
+      why:'Below about 30 % people get dry eyes, sore throats and static shocks. Long AC hours dry the air further.',
+      steps:['Raise the setpoint 1 °C so the AC runs less.', 'Place a humidifier or a bowl of water away from electronics.', 'Aim for 40–60 %.'],
+      alts:[{ t:'Raise the setpoint 1 °C.', a:btn('Setpoint +1 °C', ()=>setSetpoint(sp+1)) }] });
+
+    // ---------------- light
+    if (S.light < cfg.luxMin){
+      const canDay = act.blinds.open < 0.9 && day > 0.3;
+      R.push({ id:'lLo', sev:'warn',
+        t:`Too dark for reading: ${f0(S.light)} lux (need ${cfg.luxMin})`,
+        best: canDay ? 'Open the blinds first — daylight is free.' : act.lights.on ? 'Check the lamps and the sensor position.' : 'Turn the lights on.',
+        a: canDay ? btn('Open blinds', ()=>forceMode('blinds','open','daylight')) : !act.lights.on ? btn('Lights on', ()=>forceMode('lights','on','too dark')) : null,
+        why: canDay ? 'Daylight is better for eyes and costs nothing; lamps are the backup.' : 'Below about 300 lux reading and writing strain the eyes.',
+        steps:[ canDay ? 'Open the blinds.' : 'Switch the lights on (or set them to Auto).', 'Make sure nothing shades the TSL2561 on the desk.',
+          'If it is still dark with the lights on, check for broken lamps.'],
+        alts:[{ t:'Turn the lights on as well — instant, but uses energy.', a: act.lights.on ? null : btn('Lights on', ()=>forceMode('lights','on','too dark')) }] });
+    }
+
+    // ---------------- energy saving
+    const dayOnly = S.light - (act.lights.on && !live ? LAMP_LUX : 0);
+    if (act.lights.on && dayOnly > cfg.luxMin + 150) R.push({ id:'eLights', sev:'info',
+      t:`Lights on, but daylight alone gives ~${f0(dayOnly)} lux`,
+      best:'Switch the lights to Auto.', a:btn('Lights to Auto', ()=>forceMode('lights','auto','daylight enough')),
+      why:'The room already has enough light; the lamps only add electricity cost and heat for the AC to remove.',
+      steps:['Press “Lights to Auto” — they come back on by themselves when it gets dark.'], alts:[] });
+    if (act.vent.on && act.vent.mode === 'on' && S.gas < cfg.gasWarn*0.8 && S.hum <= cfg.humMax) R.push({ id:'eVent', sev:'info',
+      t:'Exhaust fan is on by hand and the air is clean',
+      best:'Set ventilation to Auto.', a:btn('Ventilation to Auto', ()=>forceMode('vent','auto','air clean')),
+      why:'In Auto the fan starts by itself at the gas warning level, so running it now only wastes energy and pulls out cooled air.',
+      steps:['Press “Ventilation to Auto”.'], alts:[] });
+    else if (act.hvac.on && act.vent.on && S.gas < cfg.gasWarn && S.hum <= cfg.humMax + 8) R.push({ id:'eBoth', sev:'info',
+      t:'AC and exhaust fan are both running',
+      best:'Let the fan stop unless there is gas or high humidity.', a: act.vent.mode !== 'auto' ? btn('Ventilation to Auto', ()=>forceMode('vent','auto','AC running')) : null,
+      why:'The fan throws out air the AC has just cooled, so the AC works harder for the same comfort.',
+      steps:['Check the gas and humidity tiles are green.', 'Set ventilation to Auto so it stops by itself.'], alts:[] });
+  }
+
+  // ---------------- sensor faults, forecast, projector
+  INS.faults.forEach(f=>R.push({ id:'f_'+f.code, sev:f.sev, t:f.msg, best:f.best, why:f.why, steps:f.steps,
+    alts: source==='sim' && sim.fault ? [{ t:'This is the simulated fault — clear it with the “Sensor fault” scenario button.' }] : [] }));
+  if (fresh && INS.pred != null && S.temp <= sp + 1.5 && INS.pred > sp + 1.5){
+    const acOff = act.hvac.mode === 'off', canBl = act.blinds.open > 0.3 && day > 0.3;
+    R.push({ id:'fcast', sev:'info', t:`Forecast: ${f1(INS.pred)} °C in 30 minutes (now ${f1(S.temp)} °C)`,
+      best: acOff ? 'Put the AC on Auto now so it can pre-cool.' : canBl ? 'Close the blinds now to slow the warming.' : 'Nothing yet — the BMS will start cooling at the setpoint.',
+      a: acOff ? btn('AC to Auto', ()=>forceMode('hvac','auto','pre-cool')) : canBl ? btn('Close blinds', ()=>forceMode('blinds','closed','forecast warming')) : null,
+      why:'The trend of the last 10 minutes says the room will pass the setpoint. Acting early takes less energy than cooling an already hot room.',
+      steps:['Close windows and doors.', canBl ? 'Close the blinds on the sunny side.' : 'Keep the blinds down while the sun is on the window.', 'Watch the forecast in the Insights card for 10 minutes.'], alts:[] });
+  }
+  if (fresh && INS.gasEta != null && INS.gasEta < 900) R.push({ id:'gasEta', sev:'warn', t:`Gas will reach the warning level in ~${Math.max(1, Math.round(INS.gasEta/60))} min (${f0(S.gas)} ppm now)`,
+    best: act.vent.on ? 'Find the source while the fan runs.' : 'Start ventilation now and look for the source.', a: act.vent.on ? null : btn('Start ventilation', ()=>forceMode('vent','on','gas rising')),
+    why:'The gas level is climbing steadily. Fresh air now keeps it below the warning level while you find the cause.',
+    steps:['Check gas pipes, heaters, cookers and lighters near the MQ-2.', 'Open a window.', 'If it keeps rising, follow the gas alarm steps and leave.'], alts:[] });
+  if (lecture.on && act.blinds.open > 0.5 && day > 0.3) R.push({ id:'glare', sev:'info', t:'Projector on with the blinds open',
+    best:'Close the blinds for a clearer picture.', a: btn('Close blinds', ()=>forceMode('blinds','closed','projector glare')),
+    why:'Daylight on the whiteboard washes out the projected slides; the BMS normally closes them, but the blinds are on manual.',
+    steps:['Close the blinds.', 'Return the blinds to Auto after the lecture.'], alts:[] });
+
+  // ---------------- manual overrides
+  const manual = Object.keys(act).filter(k => act[k].mode !== 'auto');
+  if (manual.length) R.push({ id:'manual', sev:'info',
+    t:`${manual.map(k=>ACTS[k].name.split(' (')[0]).join(', ')} on manual`,
+    best:'Return everything to Auto when you finish testing.',
+    a:btn('All to Auto', ()=>{ manual.forEach(k=>act[k].mode='auto'); log('All devices returned to AUTO from recommendation'); automate(); }),
+    why:'A device on manual ignores the sensors, so the BMS cannot protect comfort, energy or safety for it (the gas alarm still forces the fan on).',
+    steps:['Press “All to Auto”, or set each device to Auto in Building control.'], alts:[] });
+
+  // ---------------- data logging
+  if (!fileHandle && live) R.push({ id:'rec', sev:'info',
+    t:'Live readings are not being saved to a file',
+    best:'Start recording to a CSV file.', a:btn('Record to file', ()=>$('#recBtn').click()),
+    why:'Your report and graphs need the real measurements; rows in memory are lost when the page closes.',
+    steps:['Press “Record to file” and choose where to save.', 'Leave the page open while you collect data.', 'Press “Stop recording” when done, then open the file in Excel.'], alts:[] });
+
+  R.sort((a,b)=>SEV_RANK[a.sev]-SEV_RANK[b.sev]);
+  if (!R.some(r=>r.sev==='crit'||r.sev==='warn')) R.unshift({ id:'ok', sev:'ok',
+    t:`All readings in range — ${f1(S.temp)} °C · ${f0(S.hum)} % · ${f0(S.light)} lux · ${f0(S.gas)} ppm`,
+    best:'No action needed — keep monitoring.',
+    why:'Temperature, humidity, light and gas are all inside the limits you set, and the BMS is handling the devices.',
+    steps:['Leave every device on Auto.', 'Record to a CSV file if you need data for your report.'], alts:[] });
+  return R;
+}
+let recSig = '', recActs = {};
+const recOpen = new Set();
+const esc = t => String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderRecs(){
+  const R = recommendations(), top = R[0];
+  $('#recSev').className = 'sev ' + top.sev; $('#recSev').textContent = SEV_TXT[top.sev];
+  $('#recTop').textContent = top.sev === 'ok' ? top.t : `${top.t}  →  ${top.best}`;
+  const others = R.length - 1; $('#recCount').textContent = others ? `+${others} more` : '';
+  recActs = {};
+  R.forEach(r=>{ if (r.a) recActs[r.id] = r.a.fn; (r.alts||[]).forEach((x,i)=>{ if (x.a) recActs[r.id+':'+i] = x.a.fn; }); });
+  const sig = R.map(r=>[r.id, r.sev, r.a?.label, r.steps.length, (r.alts||[]).map(x=>x.a?.label||'-').join(',')].join('/')).join('|');
+  const list = $('#recList');
+  if (sig !== recSig){
+    recSig = sig;
+    if (!recOpen.size && R[0].sev !== 'ok') recOpen.add(R[0].id);        // most urgent item starts expanded
+    list.innerHTML = R.map(r=>`<div class="rec${recOpen.has(r.id)?' open':''}" data-id="${r.id}">
+      <div class="top"><span class="sev ${r.sev}">${SEV_TXT[r.sev]}</span>
+        <div class="main"><div class="ttl" data-f="t"></div><div class="best"><em>Best option:</em><span data-f="best"></span></div>
+          <span class="tog" data-tog="${r.id}">${recOpen.has(r.id)?'Hide':'Show'} how to act ▾</span></div>
+        ${r.a ? `<button class="go" data-act="${r.id}">${esc(r.a.label)}</button>` : ''}</div>
+      <div class="more"><h4>How to act</h4><ol>${r.steps.map((_,i)=>`<li data-f="s${i}"></li>`).join('')}</ol>
+        <h4>Why this is the best option</h4><p data-f="why"></p>
+        ${(r.alts||[]).length ? `<h4>Other options</h4>${r.alts.map((x,i)=>`<div class="alt"><span data-f="a${i}"></span>${x.a?`<button class="alt-go" data-act="${r.id}:${i}">${esc(x.a.label)}</button>`:''}</div>`).join('')}` : ''}
+      </div></div>`).join('');
+  }
+  R.forEach((r,i)=>{
+    const el = list.children[i]; if (!el) return;
+    const set = (f,v)=>{ const n = el.querySelector(`[data-f="${f}"]`); if (n && n.textContent !== v) n.textContent = v; };
+    set('t', r.t); set('best', r.best); set('why', r.why);
+    r.steps.forEach((st,j)=>set('s'+j, st)); (r.alts||[]).forEach((x,j)=>set('a'+j, x.t));
+  });
+}
+$('#recHead').addEventListener('click', ()=>$('#recbar').classList.toggle('open'));
+$('#recList').addEventListener('click', e=>{
+  const tg = e.target.closest('[data-tog]');
+  if (tg){ const id = tg.dataset.tog, el = tg.closest('.rec'); const open = !recOpen.has(id);
+    open ? recOpen.add(id) : recOpen.delete(id); el.classList.toggle('open', open); tg.textContent = `${open?'Hide':'Show'} how to act ▾`; return; }
+  const b = e.target.closest('button[data-act]');
+  if (b && recActs[b.dataset.act]){ recActs[b.dataset.act](); renderRecs(); }
+});
+
+/* ------------------------------------------------------------------ export the room as .glb (Unity / Blender) */
+function crc32(buf){ let c, crc = 0xFFFFFFFF; for (let i=0;i<buf.length;i++){ c = (crc ^ buf[i]) & 0xFF; for (let k=0;k<8;k++) c = c & 1 ? (c>>>1) ^ 0xEDB88320 : c>>>1; crc = (crc>>>8) ^ c; } return (crc ^ 0xFFFFFFFF)>>>0; }
+function zipOne(name, data){        // minimal store-only zip with one file
+  const n = new TextEncoder().encode(name), d = new Uint8Array(data), crc = crc32(d);
+  const lh = new DataView(new ArrayBuffer(30)); [[0,0x04034b50,4],[4,20,2],[8,0,2],[14,crc,4],[18,d.length,4],[22,d.length,4],[26,n.length,2]].forEach(([o,v,l])=>l===4?lh.setUint32(o,v,true):lh.setUint16(o,v,true));
+  const ch = new DataView(new ArrayBuffer(46)); [[0,0x02014b50,4],[4,20,2],[6,20,2],[16,crc,4],[20,d.length,4],[24,d.length,4],[28,n.length,2]].forEach(([o,v,l])=>l===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+  const cdOff = 30 + n.length + d.length, cdLen = 46 + n.length;
+  const end = new DataView(new ArrayBuffer(22)); [[0,0x06054b50,4],[8,1,2],[10,1,2],[12,cdLen,4],[16,cdOff,4]].forEach(([o,v,l])=>l===4?end.setUint32(o,v,true):end.setUint16(o,v,true));
+  return new Blob([lh.buffer, n, d, ch.buffer, n, end.buffer]);
+}
+function nameScene(){
+  chairs.forEach((c,i)=>c.name = `Chair_${String(i+1).padStart(2,'0')}`);
+  nodes.forEach(n=>n.g.name = n.model);
+  floor.name = 'Floor'; heat.name = 'Heatmap'; fan.name = 'Fan_Rotor'; outside.name = 'OutsideView';
+  blinds.forEach((b,i)=>b.name = `Blind_${i+1}`);
+}
+$('#glbBtn').addEventListener('click', ()=>{
+  nameScene();
+  // leave out live-only things: lights, particles, heatmap, selection box, glow halos
+  const hide = [heat, flow.p, gasP.p, selBox, beam, ...nodes.map(n=>n.halo)];
+  scene.traverse(o=>{ if (o.isLight) hide.push(o); });
+  const was = hide.map(o=>o.visible); hide.forEach(o=>o.visible = false);
+  new GLTFExporter().parse(scene, async (buf)=>{
+    hide.forEach((o,i)=>o.visible = was[i]);
+    const name = 'room_digital_twin.glb';
+    if (platformDl){
+      try{ await platformDl.save({ filename:'room_digital_twin_glb.zip', data:zipOne(name, buf) }); log('3D room exported (.glb inside a .zip)'); }
+      catch(e){ log('Export cancelled or blocked — open index.html locally to export', 'warn'); }
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([buf], { type:'model/gltf-binary' }));
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 3000);
+    log(`3D room exported → ${name} (${(buf.byteLength/1048576).toFixed(1)} MB)`);
+  }, (err)=>{ hide.forEach((o,i)=>o.visible = was[i]); log('Export failed: ' + err.message, 'warn'); }, { binary:true, onlyVisible:true });
+});
+
+/* ================================================================== LOGIN (room number + administrator) */
+const ADMIN_KEY = 'twinAdmins.v1', SESSION_KEY = 'twinSession.v1';
+let currentRoom = '—', currentAdmin = '', loggedIn = false, memAdmins = {}, lgMode = 'signin';
+function loadAdmins(){ try{ return JSON.parse(localStorage.getItem(ADMIN_KEY) || '{}'); }catch{ return memAdmins; } }
+function saveAdmins(a){ memAdmins = a; try{ localStorage.setItem(ADMIN_KEY, JSON.stringify(a)); }catch{} }
+const roomKey = r => r.trim().toUpperCase().replace(/[\/\\#?\s]+/g, '-');
+async function hashPw(salt, pw){
+  const data = new TextEncoder().encode(salt + ':' + pw);
+  if (window.crypto && crypto.subtle){
+    const h = await crypto.subtle.digest('SHA-256', data);
+    return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  let h = 2166136261; for (const b of data){ h ^= b; h = Math.imul(h, 16777619) >>> 0; } return 'fnv' + h.toString(16);
+}
+function randSalt(){ const a = new Uint8Array(12); crypto.getRandomValues(a); return [...a].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+function setLgMode(m){
+  lgMode = m; const setup = m === 'setup';
+  $('#lgTitle').textContent = setup ? 'Set up a room' : 'Administrator sign in';
+  $('#lgGo').textContent = setup ? 'Create administrator & enter' : 'Sign in';
+  $('#lgPw2Row').classList.toggle('hidden', !setup);
+  $('#lgPw2').required = setup;
+  $('#lgPw').autocomplete = setup ? 'new-password' : 'current-password';
+  $('#lgSwitch').textContent = setup ? 'I already have an account — sign in' : 'Set up a new room';
+  $('#lgForgot').classList.toggle('hidden', setup);
+  $('#lgReset').classList.add('hidden'); $('#lgErr').textContent = '';
+}
+function enterTwin(room, email){
+  currentRoom = room; currentAdmin = email; loggedIn = true;
+  try{ sessionStorage.setItem(SESSION_KEY, JSON.stringify({ room, email })); }catch{}
+  $('#login').hidden = true;
+  $('#roomTitle').textContent = `Room ${room} · Digital Twin`;
+  $('#whoTxt').textContent = `Administrator: ${email}`;
+  document.title = `Room ${room} — Digital Twin · BMS`;
+  log(`Signed in as ${email} · Room ${room}`);
+  drawSlide(); resize();
+  if (typeof resetReportStats === 'function'){ resetReportStats(); updateReportStatus(); }
+  try{ localStorage.setItem('twinLastRoom', room); }catch{}
+  if (FB && FB.auth && FB.auth.currentUser) cloudAttach(room); else $('#cloudTxt').textContent = '· this browser only';
+}
+$('#lgSwitch').addEventListener('click', ()=>setLgMode(lgMode === 'setup' ? 'signin' : 'setup'));
+/* ---- cloud accounts (Firebase) — used when firebase-config.js has a config; otherwise this-browser accounts */
+let FB = null;
+async function initCloud(){
+  const c = window.FIREBASE_CONFIG;
+  if (!c || !c.apiKey || !c.projectId) return null;
+  try{
+    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    const [app, A, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+    const a = app.initializeApp(c);
+    return { A, F, auth: A.getAuth(a), db: F.getFirestore(a) };
+  }catch(e){ console.warn('Cloud accounts unavailable:', e); return 'failed'; }
+}
+const maskEmail = e => e ? String(e).replace(/^(.).*?(@.*)$/, '$1•••$2') : 'another account';
+function authMsg(e){
+  const c = (e && e.code) || '';
+  const M = { 'auth/invalid-credential':'Wrong email or password.', 'auth/wrong-password':'Wrong email or password.', 'auth/invalid-login-credentials':'Wrong email or password.',
+    'auth/user-not-found':'No account with this email yet — use “Set up a new room”.', 'auth/invalid-email':'Enter a valid email address.',
+    'auth/weak-password':'Password must be at least 6 characters.', 'auth/too-many-requests':'Too many tries — wait a minute and try again.',
+    'auth/network-request-failed':'No internet connection — check Wi-Fi and try again.', 'auth/email-already-in-use':'This email already has an account — type its password.',
+    'auth/unauthorized-domain':'This website is not allowed in Firebase yet — add it under Authentication → Settings → Authorized domains.',
+    'auth/operation-not-allowed':'Email/password sign-in is off in Firebase — turn it on under Authentication → Sign-in method.',
+    'permission-denied':'Firebase blocked this — check the Firestore rules from the guide.',
+    'room-taken':`This room already belongs to ${maskEmail(e && e.owner)}. Log in with that account, or choose another room number.` };
+  return M[c] || (e && e.message) || String(e);
+}
+async function cloudSetup(room, email, pw){
+  const { A, F, auth, db } = FB;
+  let cred;
+  try{ cred = await A.createUserWithEmailAndPassword(auth, email, pw); }
+  catch(e){ if (e.code === 'auth/email-already-in-use') cred = await A.signInWithEmailAndPassword(auth, email, pw); else throw e; }
+  const uid = cred.user.uid, ref = F.doc(db, 'rooms', room);
+  const owner = await F.runTransaction(db, async tx=>{
+    const snap = await tx.get(ref);
+    if (snap.exists()) return snap.data();
+    tx.set(ref, { adminUid: uid, adminEmail: email, created: F.serverTimestamp() });
+    return { adminUid: uid, adminEmail: email };
+  });
+  if (owner.adminUid !== uid){ await A.signOut(auth); throw { code:'room-taken', owner: owner.adminEmail }; }
+}
+async function cloudSignIn(room, email, pw){
+  const { A, F, auth, db } = FB;
+  const cred = await A.signInWithEmailAndPassword(auth, email, pw);
+  const snap = await F.getDoc(F.doc(db, 'rooms', room));
+  if (!snap.exists()){ await A.signOut(auth); return 'unregistered'; }
+  if (snap.data().adminUid !== cred.user.uid){ await A.signOut(auth); throw { code:'room-taken', owner: snap.data().adminEmail }; }
+  return 'ok';
+}
+$('#lgForgot').addEventListener('click', async ()=>{
+  if (FB && FB !== 'failed'){
+    const email = $('#lgEmail').value.trim().toLowerCase();
+    if (!email){ $('#lgErr').textContent = 'Type your email first, then press “Forgot password?” again.'; return; }
+    try{ await FB.A.sendPasswordResetEmail(FB.auth, email); $('#lgErr').style.color = 'var(--good)'; $('#lgErr').textContent = `Reset link sent to ${email} — check your inbox (and spam).`; }
+    catch(e){ $('#lgErr').style.color = ''; $('#lgErr').textContent = authMsg(e); }
+    return;
+  }
+  if (!$('#lgRoom').value.trim()){ $('#lgErr').textContent = 'Type the room number first.'; return; }
+  $('#lgReset').classList.remove('hidden');
+});
+$('#lgResetNo').addEventListener('click', ()=>$('#lgReset').classList.add('hidden'));
+$('#lgResetYes').addEventListener('click', ()=>{
+  const a = loadAdmins(), k = roomKey($('#lgRoom').value); delete a[k]; saveAdmins(a);
+  setLgMode('setup'); $('#lgErr').textContent = `Room ${k} was reset. Create a new administrator.`;
+});
+$('#lgForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const room = roomKey($('#lgRoom').value), email = $('#lgEmail').value.trim().toLowerCase(), pw = $('#lgPw').value;
+  const err = t => { $('#lgErr').style.color = ''; $('#lgErr').textContent = t; };
+  if (!room) return err('Enter the room number.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err('Enter a valid email address.');
+  if (pw.length < 6) return err('Password must be at least 6 characters.');
+  if (lgMode === 'setup' && pw !== $('#lgPw2').value) return err('The two passwords do not match.');
+  if (FB && FB !== 'failed'){
+    const btn = $('#lgGo'), label = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; err('');
+    try{
+      if (lgMode === 'setup'){ await cloudSetup(room, email, pw); }
+      else if (await cloudSignIn(room, email, pw) === 'unregistered'){
+        setLgMode('setup'); $('#lgRoom').value = room; $('#lgEmail').value = email;
+        return err(`Room ${room} isn't registered yet. Type the password twice and press “Create administrator & enter” to register it to your account.`);
+      }
+      $('#lgPw').value = $('#lgPw2').value = ''; enterTwin(room, email);
+    }catch(x){ err(authMsg(x)); }
+    finally{ btn.disabled = false; if (btn.textContent === 'Please wait…') btn.textContent = label; }
+    return;
+  }
+  const admins = loadAdmins();
+  if (lgMode === 'setup'){
+    if (admins[room]) return err(`Room ${room} already has an administrator — sign in instead.`);
+    const salt = randSalt(); admins[room] = { email, salt, hash: await hashPw(salt, pw), created: new Date().toISOString() };
+    saveAdmins(admins); $('#lgPw').value = $('#lgPw2').value = ''; enterTwin(room, email);
+  } else {
+    const a = admins[room];
+    if (!a){ setLgMode('setup'); $('#lgRoom').value = room; $('#lgEmail').value = email; return err(`No administrator for room ${room} on this computer yet — create one.`); }
+    if (a.email !== email || a.hash !== await hashPw(a.salt, pw)) return err('Wrong email or password.');
+    $('#lgPw').value = ''; enterTwin(room, email);
+  }
+});
+function openLogout(){
+  if (!loggedIn) return;
+  const items = [];
+  if (fileHandle) items.push(`CSV recording to ${fileHandle.name} will be saved and stopped.`);
+  if (lecture.on) items.push('The projector will be switched off.');
+  if (reportOn()) items.push('Automatic Telegram reports pause until you log in again.');
+  items.push(FB ? 'Your settings are saved in the cloud; log in again on any computer with the same email and password.' : 'The room keeps its settings on this computer; log in again with the same email and password.');
+  $('#loRoom').textContent = currentRoom;
+  $('#loList').innerHTML = items.map(t=>`<li>${esc(t)}</li>`).join('');
+  $('#loReportRow').classList.toggle('hidden', !(tg.token && tg.chat));
+  $('#logoutDlg').hidden = false;
+}
+async function doLogout(){
+  $('#loGo').disabled = true; $('#loGo').textContent = 'Logging out…';
+  try{
+    if (tg.token && tg.chat && $('#loReport').checked){ try{ await tgSend(buildReport('Final report — administrator logged out')); log('Final report sent to Telegram'); }catch(e){ log('Final report failed: ' + e.message, 'warn'); } }
+    if (fileHandle){ await flushFile(); log(`CSV recording saved and stopped — ${fileRows} rows in ${fileHandle.name}`); fileHandle = null; recStatus(); }
+    if (lecture.on) setProjector(false);
+  } finally {
+    log(`Logged out (${currentAdmin}) · Room ${currentRoom}`); loggedIn = false; currentAdmin = '';
+    if (FB && FB.auth){ await cloudSaveNow(true); cloudDetach(); try{ await FB.A.signOut(FB.auth); }catch{} }
+    try{ sessionStorage.removeItem(SESSION_KEY); }catch{}
+    $('#logoutDlg').hidden = true; $('#loGo').disabled = false; $('#loGo').textContent = '⏻ Log out';
+    setLgMode('signin'); $('#lgRoom').value = currentRoom; $('#lgEmail').value = ''; $('#lgPw').value = '';
+    $('#login').hidden = false; setTimeout(()=>$('#lgEmail').focus(), 50);
+  }
+}
+$('#logoutBtn').addEventListener('click', openLogout);
+$('#logoutTop').addEventListener('click', openLogout);
+$('#loCancel').addEventListener('click', ()=>{ $('#logoutDlg').hidden = true; });
+$('#loGo').addEventListener('click', doLogout);
+async function initLogin(){
+  $('#lgGo').disabled = true;
+  FB = await initCloud();
+  $('#lgGo').disabled = false;
+  const note = $('#lgNote');
+  let lastRoom = ''; try{ lastRoom = localStorage.getItem('twinLastRoom') || ''; }catch{}
+  if (FB && FB !== 'failed'){
+    note.textContent = '☁ Cloud accounts: your room number, email and password work on any computer, and your settings follow you. Sign-in is handled by Google Firebase.';
+    $('#lgSwitch').textContent = 'Set up a new room';
+    setLgMode('signin'); if (lastRoom) $('#lgRoom').value = lastRoom;
+    const user = await new Promise(res=>{ const off = FB.A.onAuthStateChanged(FB.auth, u=>{ off(); res(u); }); });
+    if (user && lastRoom){
+      try{ const snap = await FB.F.getDoc(FB.F.doc(FB.db, 'rooms', lastRoom));
+        if (snap.exists() && snap.data().adminUid === user.uid){ enterTwin(lastRoom, user.email); return; } }catch{}
+    }
+    if (user) await FB.A.signOut(FB.auth);
+    setTimeout(()=>$(lastRoom ? '#lgEmail' : '#lgRoom').focus(), 50);
+    return;
+  }
+  note.textContent = (FB === 'failed' ? 'Could not reach the cloud account service (check internet), so accounts are saved in this browser only. ' : 'Accounts are saved in this browser only (cloud accounts are not set up). ')
+    + 'Passwords are stored hashed (SHA-256).';
+  FB = null;
+  let ses = null; try{ ses = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); }catch{}
+  const admins = loadAdmins();
+  if (ses && admins[ses.room] && admins[ses.room].email === ses.email){ enterTwin(ses.room, ses.email); return; }
+  setLgMode(Object.keys(admins).length ? 'signin' : 'setup');
+  const rooms = Object.keys(admins); if (rooms.length === 1) $('#lgRoom').value = rooms[0];
+  setTimeout(()=>$(rooms.length ? '#lgEmail' : '#lgRoom').focus(), 50);
+}
+
+/* ================================================================== LECTURE & PROJECTOR */
+const lecture = { on:false, idx:0, auto:true, topic:$('#slTopic').value, images:[], lastFlip:0 };
+const f1x = v => (+v).toFixed(1);
+const DECK = [
+  { kind:'title' },
+  { t:'What is a digital twin?', b:()=>['A live virtual copy of a real room or building', 'Real sensors feed it data every second', 'We see, analyse and control the room through the model', 'We can test “what if” situations safely in simulation'] },
+  { t:'Building Management System (BMS)', b:()=>['Sensors measure: temperature, humidity, light, gas', 'The controller decides using rules (setpoints and limits)', 'Actuators act: AC, lights, blinds, ventilation, projector', 'Goal: comfort + safety + lower energy cost'] },
+  { t:'Our sensors', b:()=>['BME280 — temperature, humidity, air pressure (I²C)', 'TSL2561 — light level in lux (I²C)', 'MQ-2 — flammable gas and smoke (analog)', 'ESP32 sends one reading per second over USB or Wi-Fi'] },
+  { t:'Automation rules in this room', b:()=>[`AC cools above ${f1x(cfg.setpoint+0.5)} °C or humidity over ${cfg.humMax} %`, `Lights switch on below ${cfg.luxMin} lux`, 'Blinds close when the room is 2 °C too warm, or for the projector', `Fan runs at ${cfg.gasWarn} ppm gas — forced on at ${cfg.gasAlarm} ppm`] },
+  { t:'Live room data', kind:'live' },
+  { t:'Energy saved by the BMS', kind:'energy' },
+  { kind:'end' }
+];
+const deckLen = () => lecture.images.length || DECK.length;
+function wrapText(ctx, text, x, y, maxW, lh){
+  const words = String(text).split(' '); let line = '';
+  for (const w of words){ const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line){ ctx.fillText(line, x, y); y += lh; line = w; } else line = t; }
+  ctx.fillText(line, x, y); return y + lh;
+}
+function drawSlide(){
+  const g = sctx, W = 1280, Hh = 720, n = lecture.idx, N = deckLen();
+  g.setTransform(1,0,0,1,0,0);
+  if (lecture.images.length){
+    const im = lecture.images[n]; g.fillStyle = '#000'; g.fillRect(0,0,W,Hh);
+    const k = Math.min(W/im.width, Hh/im.height), w = im.width*k, h = im.height*k;
+    g.drawImage(im, (W-w)/2, (Hh-h)/2, w, h);
+  } else {
+    const sl = DECK[n];
+    g.fillStyle = '#fbfcfe'; g.fillRect(0,0,W,Hh);
+    if (sl.kind === 'title' || sl.kind === 'end'){
+      const grd = g.createLinearGradient(0,0,W,Hh); grd.addColorStop(0,'#123a6b'); grd.addColorStop(1,'#1f6e8c');
+      g.fillStyle = grd; g.fillRect(0,0,W,Hh);
+      g.fillStyle = '#ffffff'; g.textAlign = 'center';
+      if (sl.kind === 'title'){
+        g.font = 'bold 64px Inter, Arial, sans-serif'; let y = wrapText(g, lecture.topic, W/2, 290, 1080, 76);
+        g.font = '30px Inter, Arial, sans-serif'; g.fillStyle = '#cfe3ff';
+        g.fillText(`Room ${currentRoom} · Lecture in progress`, W/2, y + 30);
+        g.fillText(new Date().toLocaleDateString([], { weekday:'long', day:'numeric', month:'long', year:'numeric' }), W/2, y + 76);
+      } else {
+        g.font = 'bold 96px Inter, Arial, sans-serif'; g.fillText('Questions?', W/2, 340);
+        g.font = '32px Inter, Arial, sans-serif'; g.fillStyle = '#cfe3ff'; g.fillText('Thank you', W/2, 410);
+      }
+      g.textAlign = 'left';
+    } else {
+      g.fillStyle = '#123a6b'; g.fillRect(0,0,W,120);
+      g.fillStyle = '#ffffff'; g.font = 'bold 52px Inter, Arial, sans-serif'; g.fillText(sl.t, 70, 80);
+      if (sl.b){
+        g.font = '38px Inter, Arial, sans-serif'; let y = 220;
+        sl.b().forEach(line=>{ g.fillStyle = '#1f6e8c'; g.beginPath(); g.arc(88, y-13, 9, 0, 7); g.fill(); g.fillStyle = '#1b2430'; y = wrapText(g, line, 120, y, 1080, 50) + 28; });
+      } else if (sl.kind === 'live'){
+        const tiles = [['Temperature', f1x(S.temp)+' °C', status('temp')], ['Humidity', S.hum.toFixed(0)+' %', status('hum')], ['Light', S.light.toFixed(0)+' lux', status('light')], ['Gas', S.gas.toFixed(0)+' ppm', status('gas')]];
+        tiles.forEach(([name,val,st],i)=>{
+          const x = 70 + (i%2)*580, y = 170 + Math.floor(i/2)*250;
+          g.fillStyle = '#eef3f9'; g.fillRect(x, y, 540, 220);
+          g.fillStyle = STATUS_COL[st]; g.fillRect(x, y, 12, 220);
+          g.fillStyle = '#4a5a6c'; g.font = '32px Inter, Arial, sans-serif'; g.fillText(name, x+40, y+60);
+          g.fillStyle = '#1b2430'; g.font = 'bold 72px Inter, Arial, sans-serif'; g.fillText(val, x+40, y+150);
+          g.fillStyle = '#4a5a6c'; g.font = '26px Inter, Arial, sans-serif'; g.fillText(STATUS_TXT[k4(name)][st], x+40, y+195);
+        });
+      } else if (sl.kind === 'energy'){
+        const E = energySummary();
+        [['Energy used', E.kwh.toFixed(2)+' kWh'], ['Cost', E.cost.toFixed(2)+' EGP'], ['Saved by the BMS', Math.round(E.pct*100)+' %']].forEach(([name,val],i)=>{
+          const x = 70 + i*390; g.fillStyle = '#eef3f9'; g.fillRect(x, 190, 360, 220);
+          g.fillStyle = '#4a5a6c'; g.font = '30px Inter, Arial, sans-serif'; g.fillText(name, x+30, 250);
+          g.fillStyle = i===2 ? '#1f8a55' : '#1b2430'; g.font = 'bold 64px Inter, Arial, sans-serif'; g.fillText(val, x+30, 350);
+        });
+        g.fillStyle = '#1b2430'; g.font = '32px Inter, Arial, sans-serif';
+        wrapText(g, `The BMS turns the AC, lights and fan on only when the sensors say they are needed — about ${E.month.toFixed(0)} EGP per month at this rate (8 h × 22 days).`, 70, 500, 1140, 46);
+      }
+    }
+  }
+  const darkSlide = lecture.images.length || ['title','end'].includes(DECK[n] && DECK[n].kind);
+  g.fillStyle = darkSlide ? 'rgba(0,0,0,.35)' : 'rgba(18,58,107,.08)'; g.fillRect(0, Hh-48, W, 48);
+  g.fillStyle = darkSlide ? '#e8f0fb' : '#4a5a6c'; g.font = '22px Inter, Arial, sans-serif';
+  g.fillText(`Room ${currentRoom} · Smart Classroom Digital Twin`, 30, Hh-17);
+  g.textAlign = 'right'; g.fillText(`${n+1} / ${N}`, W-30, Hh-17); g.textAlign = 'left';
+  slideTex.needsUpdate = true;
+  $('#slNum').textContent = `${n+1} / ${N}`;
+}
+const k4 = name => ({ Temperature:'temp', Humidity:'hum', Light:'light', Gas:'gas' })[name];
+function setProjector(on){
+  lecture.on = on; slideMesh.visible = beam.visible = on; lecture.lastFlip = performance.now();
+  lensMat.emissiveIntensity = on ? 1.5 : 0;
+  $('#pjBtn').textContent = on ? '■ Projector off' : '▶ Projector on'; $('#pjBtn').classList.toggle('on', on);
+  log(on ? 'Projector ON — lecture started' : 'Projector OFF'); drawSlide(); automate();
+  sendCmd({ cmd:'projector', on: on?1:0 });
+}
+function goSlide(d){ lecture.idx = (lecture.idx + d + deckLen()) % deckLen(); lecture.lastFlip = performance.now(); drawSlide(); }
+$('#pjBtn').addEventListener('click', ()=>setProjector(!lecture.on));
+$('#slPrev').addEventListener('click', ()=>goSlide(-1));
+$('#slNext').addEventListener('click', ()=>goSlide(1));
+$('#slAuto').addEventListener('change', e=>{ lecture.auto = e.target.checked; lecture.lastFlip = performance.now(); });
+$('#slTopic').addEventListener('input', e=>{ lecture.topic = e.target.value || 'Lecture'; if (!lecture.images.length && lecture.idx===0) drawSlide(); });
+$('#slLoad').addEventListener('click', ()=>$('#slFiles').click());
+$('#slFiles').addEventListener('change', async e=>{
+  const files = [...e.target.files].sort((a,b)=>a.name.localeCompare(b.name, undefined, { numeric:true }));
+  const imgs = await Promise.all(files.map(f=>new Promise(res=>{ const im = new Image(); im.onload = ()=>res(im); im.onerror = ()=>res(null); im.src = URL.createObjectURL(f); })));
+  lecture.images = imgs.filter(Boolean); lecture.idx = 0; e.target.value = '';
+  $('#slBuiltIn').classList.toggle('hidden', !lecture.images.length);
+  log(`${lecture.images.length} slide images loaded`); drawSlide();
+});
+$('#slBuiltIn').addEventListener('click', ()=>{ lecture.images = []; lecture.idx = 0; $('#slBuiltIn').classList.add('hidden'); drawSlide(); });
+function lectureTick(){
+  if (!lecture.on) return;
+  if (lecture.auto && performance.now() - lecture.lastFlip > 12000) goSlide(1);
+  else if (!lecture.images.length && ['live','energy'].includes(DECK[lecture.idx].kind)) drawSlide();
+}
+
+/* ================================================================== ENERGY & COST */
+const POWER = { hvac:1500, lights:240, vent:60, projector:250 }; let TARIFF = 2.64;
+const EN_NAMES = { hvac:'AC', lights:'Lights', vent:'Exhaust fan', projector:'Projector' };
+const energy = { wh:{ hvac:0, lights:0, vent:0, projector:0 }, run:{ hvac:0, lights:0, vent:0, projector:0 }, base:0, secs:0 };
+function energyTick(dt){
+  if (!dt) return;
+  const on = { hvac:act.hvac.on, lights:act.lights.on, vent:act.vent.on, projector:lecture.on };
+  for (const k in on) if (on[k]){ energy.wh[k] += POWER[k]*dt/3600; energy.run[k] += dt; }
+  energy.base += (POWER.hvac + POWER.lights + (on.projector ? POWER.projector : 0)) * dt/3600;   // no BMS: AC + lights left on
+  energy.secs += dt;
+}
+function energySummary(){
+  const wh = Object.values(energy.wh).reduce((a,b)=>a+b, 0), kwh = wh/1000;
+  const pct = energy.base > 0 ? (energy.base - wh)/energy.base : 0;
+  const hours = energy.secs/3600, avgKw = hours > 0 ? kwh/hours : 0;
+  return { kwh, cost:kwh*TARIFF, saved:(energy.base - wh)/1000*TARIFF, pct, month: avgKw*8*22*TARIFF, hours };
+}
+const hm = s => `${Math.floor(s/3600)}:${String(Math.floor(s%3600/60)).padStart(2,'0')}`;
+function renderEnergy(){
+  const E = energySummary();
+  $('#enKwh').textContent = E.kwh.toFixed(2); $('#enCost').textContent = E.cost.toFixed(2);
+  $('#enSave').textContent = `${Math.round(E.pct*100)} %`; $('#enSaveSub').textContent = `saved by BMS (${E.saved.toFixed(2)} EGP)`;
+  const max = Math.max(1, ...Object.values(energy.wh));
+  $('#enBars').innerHTML = Object.keys(energy.wh).map(k=>`<div class="r"><span>${EN_NAMES[k]}</span><span class="b"><i style="width:${(energy.wh[k]/max*100).toFixed(1)}%"></i></span><span>${(energy.wh[k]/1000).toFixed(2)} kWh · ${hm(energy.run[k])}</span></div>`).join('');
+  $('#enMonth').textContent = E.hours > 0.01 ? `Over ${hm(energy.secs)} h of ${source==='sim'?'simulated':source==='replay'?'replayed':'live'} time. At this rate: ≈ ${E.month.toFixed(0)} EGP per month (8 h a day, 22 days).` : 'Counting starts now.';
+}
+[['#pwHvac','hvac'],['#pwLights','lights'],['#pwVent','vent'],['#pwProj','projector']].forEach(([id,k])=>$(id).addEventListener('input', e=>{ POWER[k] = Math.max(0, +e.target.value||0); }));
+$('#tariff').addEventListener('input', e=>{ TARIFF = Math.max(0, +e.target.value||0); renderEnergy(); });
+$('#enReset').addEventListener('click', ()=>{ for (const k in energy.wh){ energy.wh[k] = 0; energy.run[k] = 0; } energy.base = 0; energy.secs = 0; renderEnergy(); log('Energy counters reset'); });
+
+/* ================================================================== INSIGHTS: prediction, dew point, sensor health */
+let simClock = 0;
+const series = [], lastKey = { temp:0, hum:0, light:0, gas:0, pres:0 };
+let INS = { pred:null, faults:[] };
+function regress(pts, key){
+  const n = pts.length; if (n < 2) return null;
+  let sx=0, sy=0, sxx=0, sxy=0, syy=0;
+  for (const p of pts){ const x = p.t - simClock, y = p[key]; sx+=x; sy+=y; sxx+=x*x; sxy+=x*y; syy+=y*y; }
+  const den = n*sxx - sx*sx; if (Math.abs(den) < 1e-9) return null;
+  const b = (n*sxy - sx*sy)/den, a = (sy - b*sx)/n;
+  const ssTot = syy - sy*sy/n, ssRes = pts.reduce((s,p)=>s + (p[key] - (a + b*(p.t-simClock)))**2, 0);
+  return { a, b, r2: ssTot > 1e-9 ? 1 - ssRes/ssTot : 1 };
+}
+function dewPoint(T, RH){ const b = 17.62, c = 243.12, g = Math.log(Math.max(RH,1)/100) + b*T/(c+T); return c*g/(b-g); }
+function humidex(T, Td){ return T + 0.5555*(6.11*Math.exp(5417.753*(1/273.16 - 1/(273.15+Td))) - 10); }
+function staleSecs(k){
+  if (source === 'sim') return sim.fault && k === 'light' ? (simClock - sim.faultAt) : 0;
+  if (source === 'replay' || !rxCount) return 0;
+  return lastKey[k] ? (performance.now() - lastKey[k])/1000 : Infinity;
+}
+function healthCheck(){
+  const F = [], live = source !== 'sim' && source !== 'replay';
+  const fresh = !live || (lastRx && performance.now()-lastRx < 5000);
+  if (!fresh) return F;
+  const fix = { bme:['Check the 4 wires of the BME280 (VIN 3V3, GND, SDA GPIO21, SCL GPIO22).', 'Press the board’s reset button.', 'If it keeps happening, try the other I²C address (0x76 / 0x77) or replace the module.'],
+    tsl:['Check the TSL2561 wires (it shares SDA/SCL with the BME280).', 'Make sure its ADDR pin is not touching anything.', 'Press the board’s reset button.'],
+    mq:['Check the MQ-2 AO wire and the voltage divider.', 'Make sure the module has 5 V (the red power LED is on).'] };
+  // impossible values
+  if (S.temp < -40 || S.temp > 85 || S.hum < 0 || S.hum > 100) F.push({ code:'bmeRange', sev:'crit', msg:`BME280 gives impossible values (${f1x(S.temp)} °C, ${S.hum.toFixed(0)} %)`, best:'Check the BME280 wiring — the readings cannot be real.', why:'The BME280 can only measure −40 to 85 °C and 0–100 %. A value outside that means a wiring or address fault, so the AC rules are working on bad data.', steps:fix.bme });
+  if (S.light < 0 || S.light > 40000) F.push({ code:'tslRange', sev:'crit', msg:`TSL2561 out of range (${S.light.toFixed(0)} lux)`, best:'Check the TSL2561 and keep it out of direct sun or lamps.', why:'Above about 40,000 lux the TSL2561 saturates; negative values mean a reading error.', steps:fix.tsl });
+  if (S.gas > 10000) F.push({ code:'mqRange', sev:'crit', msg:`MQ-2 saturated (${S.gas.toFixed(0)} ppm)`, best:'Treat it as a gas alarm first, then check the MQ-2 wiring.', why:'The MQ-2 is rated to about 10,000 ppm. Either the gas level is extreme or the analog wire is shorted to 5 V.', steps:['Follow the gas alarm steps if you smell gas or smoke.', ...fix.mq] });
+  // frozen BME280 (temperature and humidity identical for 2 minutes)
+  if (series.length >= 120){
+    const last = series.slice(-120), t0 = last[0].temp.toFixed(1), h0 = last[0].hum.toFixed(0);
+    if (last.every(p=>p.temp.toFixed(1)===t0 && p.hum.toFixed(0)===h0)) F.push({ code:'bmeStuck', sev:'warn', msg:'BME280 readings frozen for 2 minutes', best:'Restart the board — the BME280 may have stopped updating.', why:'A real room’s temperature and humidity always move slightly. Identical values for 2 minutes usually mean the sensor or the I²C bus has hung.', steps:fix.bme });
+  }
+  // sudden jumps
+  if (series.length >= 2){
+    const a = series[series.length-2], b = series[series.length-1];
+    if (b.t - a.t <= 5 && (Math.abs(b.temp-a.temp) > 3 || Math.abs(b.hum-a.hum) > 15)) F.push({ code:'bmeJump', sev:'warn', msg:`BME280 jumped ${f1x(Math.abs(b.temp-a.temp))} °C / ${Math.abs(b.hum-a.hum).toFixed(0)} % in one reading`, best:'Check for a loose wire on the BME280.', why:'A room cannot change that fast. Jumps like this are typical of a loose connection or something touching the sensor.', steps:fix.bme });
+  }
+  // a sensor stopped reporting while the others still do
+  [['temp','BME280','bme'],['light','TSL2561','tsl'],['gas','MQ-2','mq']].forEach(([k,chip,f])=>{
+    const st = staleSecs(k);
+    if (st > 10) F.push({ code:k+'Stale', sev:'warn', msg:`${chip} not reporting for ${isFinite(st) ? st.toFixed(0)+' s' : 'a while'}`, best:`Check the ${chip} — the other sensors still work.`, why:`The board is sending data, but without the ${chip} value. The twin keeps showing its last reading, which may be out of date.`, steps:fix[f] });
+  });
+  return F;
+}
+function insightsTick(dt){
+  if (dt > 0){ series.push({ t:simClock, temp:S.temp, hum:S.hum, gas:S.gas, light:S.light }); if (series.length > 1500) series.shift(); }
+  const win = series.filter(p=>p.t >= simClock - 600);
+  INS = { pred:null, faults: healthCheck() };
+  if (win.length >= 20 && simClock - win[0].t >= 60){
+    const r = regress(win, 'temp');
+    if (r){
+      INS.pred = clamp(r.a + r.b*1800, S.temp - 10, S.temp + 10); INS.slope10 = r.b*600; INS.r2 = r.r2;
+      $('#inPred').textContent = `${f1x(INS.pred)} °C`;
+      const dir = Math.abs(INS.slope10) < 0.05 ? 'steady' : INS.slope10 > 0 ? `rising ${f1x(INS.slope10)} °C per 10 min` : `falling ${f1x(-INS.slope10)} °C per 10 min`;
+      $('#inTrend').textContent = `now ${f1x(S.temp)} °C · ${dir} · fit ${r.r2 > 0.8 ? 'good' : r.r2 > 0.5 ? 'fair' : 'weak'} (R² ${r.r2.toFixed(2)})`;
+    }
+  } else { $('#inPred').textContent = '—'; $('#inTrend').textContent = `collecting data… (${Math.max(0, Math.ceil(60 - (win.length ? simClock - win[0].t : 0)))} s)`; }
+  const gw = series.filter(p=>p.t >= simClock - 120), rg = gw.length >= 10 ? regress(gw, 'gas') : null;
+  INS.gasEta = null;
+  if (rg && rg.b > 0.05 && S.gas < cfg.gasWarn){ INS.gasEta = (cfg.gasWarn - S.gas)/rg.b; }
+  $('#inGas').textContent = !rg ? '—' : rg.b > 0.05 ? `rising ${(rg.b*60).toFixed(0)} ppm/min` : rg.b < -0.05 ? `falling ${(-rg.b*60).toFixed(0)} ppm/min` : 'stable';
+  $('#inGasSub').textContent = INS.gasEta != null && INS.gasEta < 3600 ? `reaches warning (${cfg.gasWarn}) in ~${Math.max(1, Math.round(INS.gasEta/60))} min` : S.gas >= cfg.gasWarn ? 'above the warning level' : '';
+  const Td = dewPoint(S.temp, S.hum), hx = humidex(S.temp, Td);
+  INS.dew = Td; INS.humidex = hx;
+  $('#inDew').textContent = `${f1x(Td)} °C`;
+  INS.mould = S.hum >= 70 ? 'High' : S.hum >= 60 ? 'Medium' : 'Low';
+  $('#inMould').textContent = `${INS.mould} (${S.hum.toFixed(0)} % RH)`;
+  $('#inFeel').textContent = `${hx.toFixed(0)} °C`;
+  $('#inFeelSub').textContent = hx < 30 ? 'comfortable' : hx < 40 ? 'some discomfort' : hx < 46 ? 'great discomfort — avoid exertion' : 'dangerous';
+  $('#inHealth').innerHTML = INS.faults.length
+    ? INS.faults.map(f=>`<div class="h"><span class="pill ${f.sev}">${f.sev==='crit'?'Fault':'Check'}</span><span>${esc(f.msg)}</span></div>`).join('')
+    : `<div class="h"><span class="pill good">OK</span><span>BME280, TSL2561 and MQ-2 all reporting normally</span></div>`;
+}
+
+/* ================================================================== HISTORY REPLAY */
+const replay = { rows:[], idx:0, playing:false, rate:20, hasActs:false, metric:'temp', name:'' };
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim() && !/^sep=/i.test(l));
+  if (lines.length < 2) throw new Error('The file has no data rows.');
+  const delim = lines[0].split(';').length > lines[0].split(',').length ? ';' : ',';
+  const hdr = lines[0].split(delim).map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase());
+  const tCol = hdr.findIndex(h=>/time|date/.test(h));
+  const col = {};
+  for (const k in KEYS) col[k] = hdr.findIndex(h=>!h.endsWith('_status') && KEYS[k].some(a=>h===a || h.startsWith(a+'_') || h.startsWith(a+' ') || h.startsWith(a+'(')));
+  const ac = { hvac: hdr.indexOf('hvac'), lights: hdr.indexOf('lights'), vent: hdr.findIndex(h=>h==='ventilation'||h==='vent'), blinds: hdr.findIndex(h=>h.startsWith('blinds')) };
+  if (['temp','hum','light','gas'].every(k=>col[k] < 0)) throw new Error('No temperature, humidity, light or gas columns found.');
+  const rows = lines.slice(1).map((l,i)=>{
+    const c = l.split(delim).map(x=>x.trim().replace(/^"|"$/g,''));
+    const t = tCol >= 0 ? new Date(c[tCol].replace(' ', 'T')) : null;
+    const v = {}; for (const k in col) if (col[k] >= 0 && c[col[k]] !== '' && isFinite(+c[col[k]])) v[k] = +c[col[k]];
+    const a = {}; for (const k in ac) if (ac[k] >= 0 && c[ac[k]] !== '' && isFinite(+c[ac[k]])) a[k] = +c[ac[k]];
+    return { t: t && !isNaN(t) ? t : null, i, v, a };
+  });
+  return { rows, hasActs: ac.hvac >= 0 || ac.lights >= 0 || ac.vent >= 0 };
+}
+const rowTime = r => r.t ? r.t.getTime()/1000 : r.i;
+function applyRow(i){
+  const r = replay.rows[i]; if (!r) return;
+  Object.assign(S, r.v);
+  if (replay.hasActs){
+    if ('hvac' in r.a) act.hvac.on = !!r.a.hvac; if ('lights' in r.a) act.lights.on = !!r.a.lights;
+    if ('vent' in r.a) act.vent.on = !!r.a.vent; if ('blinds' in r.a) act.blinds.open = clamp(r.a.blinds/100, 0, 1);
+  }
+  if (r.t) sim.tod = r.t.getHours() + r.t.getMinutes()/60;
+  $('#rpSlider').value = i;
+  $('#rpTime').textContent = `${r.t ? stamp(r.t) : 'row ' + (i+1)} · row ${i+1} of ${replay.rows.length}`;
+}
+function replayStep(){
+  if (!replay.playing || !replay.rows.length) return 0;
+  const prev = replay.idx; replay.idx = Math.min(replay.rows.length-1, replay.idx + replay.rate);
+  applyRow(replay.idx); drawReplayChart();
+  if (replay.idx >= replay.rows.length-1){ replay.playing = false; $('#rpPlay').textContent = '▶ Play'; log('Replay finished'); }
+  return clamp(rowTime(replay.rows[replay.idx]) - rowTime(replay.rows[prev]), 0, 3600*replay.rate);
+}
+function drawReplayChart(hoverX){
+  const cv = $('#rpChart'), dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (!w || !replay.rows.length) return;
+  if (cv.width !== w*dpr){ cv.width = w*dpr; cv.height = h*dpr; }
+  const g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  const k = replay.metric, vals = replay.rows.map(r=>r.v[k]).filter(v=>v!=null); if (!vals.length) return;
+  let mn = Math.min(...vals), mx = Math.max(...vals); const pad = (mx-mn)*0.12 || 1; mn -= pad; mx += pad;
+  const N = replay.rows.length, X = i => 6 + i/(N-1||1)*(w-12), Y = v => h-6 - (v-mn)/(mx-mn)*(h-22);
+  g.strokeStyle = '#4aa3ff'; g.lineWidth = 2; g.lineJoin = 'round'; g.beginPath(); let started = false;
+  const step = Math.max(1, Math.floor(N/(w*1.5)));
+  for (let i=0;i<N;i+=step){ const v = replay.rows[i].v[k]; if (v==null) continue; started ? g.lineTo(X(i),Y(v)) : g.moveTo(X(i),Y(v)); started = true; }
+  g.stroke();
+  g.strokeStyle = '#e9edf2'; g.lineWidth = 1; g.beginPath(); g.moveTo(X(replay.idx), 4); g.lineTo(X(replay.idx), h-4); g.stroke();
+  g.fillStyle = '#aab4c0'; g.font = '11px JetBrains Mono, monospace';
+  g.fillText(`${SENS[k].name}: ${mn.toFixed(SENS[k].dec)}–${mx.toFixed(SENS[k].dec)} ${SENS[k].unit}`, 8, 13);
+  if (hoverX != null){
+    const i = clamp(Math.round((hoverX-6)/(w-12)*(N-1)), 0, N-1), r = replay.rows[i];
+    g.strokeStyle = '#717c89'; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(i),4); g.lineTo(X(i),h-4); g.stroke(); g.setLineDash([]);
+    const txt = `${r.t ? stamp(r.t).slice(11) : 'row '+(i+1)} · ${r.v[k]!=null ? r.v[k].toFixed(SENS[k].dec)+' '+SENS[k].unit : '—'}`;
+    g.fillStyle = '#e9edf2'; g.textAlign = X(i) > w/2 ? 'right' : 'left'; g.fillText(txt, X(i) + (X(i) > w/2 ? -6 : 6), h-10); g.textAlign = 'left';
+  }
+}
+$('#rpLoad').addEventListener('click', ()=>$('#rpFile').click());
+$('#rpFile').addEventListener('change', async e=>{
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try{
+    const { rows, hasActs } = parseCSV(await f.text());
+    if (source !== 'sim' && source !== 'replay'){ await disconnect(); log('Live connection closed for replay'); }
+    Object.assign(replay, { rows, hasActs, idx:0, playing:false, name:f.name });
+    source = 'replay'; $('#simBox').style.display = 'none'; $('#src').value = 'sim';
+    setConn('sim', `Replaying ${f.name}`);
+    $('#rpBox').classList.remove('hidden'); $('#rpSlider').max = rows.length-1; $('#rpPlay').textContent = '▶ Play';
+    const first = rows.find(r=>r.t), last = [...rows].reverse().find(r=>r.t);
+    $('#rpName').textContent = `${f.name} · ${rows.length} rows${first && last ? ` · ${stamp(first.t)} → ${stamp(last.t).slice(11)}` : ''}`;
+    applyRow(0); drawReplayChart(); log(`Replay loaded: ${f.name} (${rows.length} rows)`);
+  }catch(err){ $('#rpName').textContent = 'Could not read that file: ' + err.message; }
+});
+$('#rpPlay').addEventListener('click', ()=>{
+  if (!replay.rows.length) return;
+  if (replay.idx >= replay.rows.length-1) replay.idx = 0;
+  replay.playing = !replay.playing; $('#rpPlay').textContent = replay.playing ? '❚❚ Pause' : '▶ Play';
+});
+$('#rpRate').addEventListener('change', e=>{ replay.rate = +e.target.value; });
+$('#rpMetric').addEventListener('change', e=>{ replay.metric = e.target.value; drawReplayChart(); });
+$('#rpSlider').addEventListener('input', e=>{ replay.idx = +e.target.value; applyRow(replay.idx); drawReplayChart(); });
+$('#rpChart').addEventListener('mousemove', e=>drawReplayChart(e.offsetX));
+$('#rpChart').addEventListener('mouseleave', ()=>drawReplayChart());
+$('#rpChart').addEventListener('click', e=>{ const w = e.currentTarget.clientWidth, N = replay.rows.length; replay.idx = clamp(Math.round((e.offsetX-6)/(w-12)*(N-1)), 0, N-1); applyRow(replay.idx); drawReplayChart(e.offsetX); });
+$('#rpExit').addEventListener('click', ()=>{
+  replay.playing = false; replay.rows = []; $('#rpBox').classList.add('hidden'); $('#rpName').textContent = 'Replay a recorded CSV in the 3D room.';
+  source = 'sim'; $('#simBox').style.display = ''; setConn('sim', 'Simulation running'); sim.tod = +$('#cTod').value; log('Replay closed — back to simulation');
+});
+
+/* ================================================================== PHONE ALERTS (Telegram) */
+const TG_KEY = 'twinTelegram.v1';
+const tg = { token:'', chat:'', on:{ alarm:true, warn:true, temp:true, fault:true, nodata:true }, sim:true, last:{}, prev:{} };
+const TG_IDS = { alarm:'#tgAlarm', warn:'#tgWarn', temp:'#tgTemp', fault:'#tgFault', nodata:'#tgNoData' };
+function tgStatus(t){ $('#tgStatus').textContent = t; }
+function tgRead(){ tg.token = $('#tgToken').value.trim(); tg.chat = $('#tgChat').value.trim(); for (const k in TG_IDS) tg.on[k] = $(TG_IDS[k]).checked; tg.sim = $('#tgSim').checked; }
+(function tgLoad(){
+  try{ const t = JSON.parse(localStorage.getItem(TG_KEY) || 'null'); if (!t) return;
+    $('#tgToken').value = t.token || ''; $('#tgChat').value = t.chat || ''; for (const k in TG_IDS) if (t.on && k in t.on) $(TG_IDS[k]).checked = t.on[k];
+    if ('sim' in t) $('#tgSim').checked = t.sim;
+    if (t.report){ $('#trEvery').value = t.report.every || 'off'; $('#trAt').value = t.report.at || '08:00'; $('#trAt').classList.toggle('hidden', $('#trEvery').value !== 'daily'); }
+    tgRead(); if (tg.token && tg.chat) tgStatus('Saved settings loaded. Alerts are on.'); }catch{}
+})();
+async function tgSend(text){
+  if (!tg.token || !tg.chat) throw new Error('add the bot token and chat ID first');
+  const url = `https://api.telegram.org/bot${encodeURIComponent(tg.token).replace('%3A',':')}/sendMessage`;
+  try{
+    const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ chat_id: tg.chat, text }) });
+    const j = await r.json().catch(()=>({}));
+    if (!r.ok || !j.ok) throw Object.assign(new Error(j.description || 'HTTP ' + r.status), { api:true });
+    return 'sent';
+  }catch(e){
+    if (e.api) throw e;
+    // browser blocked reading the reply (CORS) — send anyway; delivery can't be confirmed
+    await fetch(`${url}?chat_id=${encodeURIComponent(tg.chat)}&text=${encodeURIComponent(text)}`, { mode:'no-cors' });
+    return 'sent (unconfirmed)';
+  }
+}
+$('#tgSave').addEventListener('click', ()=>{
+  tgRead();
+  try{ tgPersist(); tgStatus(tg.token && tg.chat ? 'Saved in this browser. Alerts are on.' : 'Saved. Add a token and chat ID to turn alerts on.'); }
+  catch{ tgStatus('Settings kept until the page closes (this browser blocks saving).'); }
+});
+$('#tgTest').addEventListener('click', async ()=>{
+  tgRead(); tgStatus('Sending…');
+  try{ const r = await tgSend(`✅ Test from Room ${currentRoom} digital twin\n${S.temp.toFixed(1)} °C · ${S.hum.toFixed(0)} % · ${S.light.toFixed(0)} lux · ${S.gas.toFixed(0)} ppm\n${stamp()}`); tgStatus(`Test ${r}. Check Telegram.`); log('Telegram test ' + r); }
+  catch(e){ tgStatus(`Failed: ${e.message}. Phone alerts need index.html opened from your computer and internet access.`); }
+});
+function alertsTick(){
+  if (!loggedIn || !tg.token || !tg.chat || source === 'replay') return;
+  if (source === 'sim' && !tg.sim) return;
+  const live = source !== 'sim', ago = lastRx ? (performance.now()-lastRx)/1000 : 0, now = performance.now();
+  const room = `Room ${currentRoom}`, when = stamp().slice(11);
+  const cond = {
+    alarm: S.gas >= cfg.gasAlarm,
+    warn: S.gas >= cfg.gasWarn && S.gas < cfg.gasAlarm,
+    temp: S.temp > 30 || S.temp < 16,
+    fault: INS.faults.length > 0,
+    nodata: live && lastRx > 0 && ago > 15
+  };
+  const msg = {
+    alarm: `🚨 GAS ALARM — ${room}\nMQ-2: ${S.gas.toFixed(0)} ppm (alarm level ${cfg.gasAlarm}).\nEvacuate, no switches or flames, open windows if safe.\nEgypt: gas emergency 129 · fire 180.\n${when}`,
+    warn: `⚠️ Gas rising — ${room}\nMQ-2: ${S.gas.toFixed(0)} ppm (warning ${cfg.gasWarn}). Ventilation started.\n${when}`,
+    temp: `🌡️ Temperature ${S.temp.toFixed(1)} °C — ${room}\n${S.temp > 30 ? 'Too hot: check the AC.' : 'Too cold: stop cooling.'}\n${when}`,
+    fault: `🔧 Sensor problem — ${room}\n${INS.faults[0] ? INS.faults[0].msg : ''}\n${when}`,
+    nodata: `📡 Board offline — ${room}\nNo data for ${ago.toFixed(0)} s. Check the USB cable or Wi-Fi.\n${when}`
+  };
+  for (const k in cond){
+    if (cond[k] && !tg.prev[k] && tg.on[k] && now - (tg.last[k] || -1e9) > 300000){
+      tg.last[k] = now;
+      tgSend(msg[k]).then(r=>{ log(`Phone alert ${r}: ${k}`); tgStatus(`Last alert (${k}) ${r} at ${when}.`); })
+        .catch(e=>{ tgStatus(`Alert failed: ${e.message}`); log('Phone alert failed: ' + e.message, 'warn'); });
+    }
+    tg.prev[k] = cond[k];
+  }
+}
+
+/* ================================================================== AUTOMATIC TELEGRAM REPORTS */
+const REPORT_LAST_KEY = 'twinReportLast.v1';
+const rstat = { n:0, min:{}, max:{}, sum:{}, warn:0, alarm:0, prevWarn:false, prevAlarm:false, faults:new Set(), since:Date.now(), wh0:0, base0:0 };
+function tgPersist(){
+  localStorage.setItem(TG_KEY, JSON.stringify({ token:tg.token, chat:tg.chat, on:tg.on, sim:tg.sim, report:{ every:$('#trEvery').value, at:$('#trAt').value } }));
+}
+const reportOn = () => $('#trEvery').value !== 'off';
+function lastReportAt(){ try{ return (JSON.parse(localStorage.getItem(REPORT_LAST_KEY) || '{}'))[currentRoom] || 0; }catch{ return rstat.memLast || 0; } }
+function setLastReportAt(t){ rstat.memLast = t; try{ const o = JSON.parse(localStorage.getItem(REPORT_LAST_KEY) || '{}'); o[currentRoom] = t; localStorage.setItem(REPORT_LAST_KEY, JSON.stringify(o)); }catch{} }
+function resetReportStats(){
+  Object.assign(rstat, { n:0, min:{}, max:{}, sum:{}, warn:0, alarm:0, faults:new Set(), since:Date.now() });
+  rstat.wh0 = Object.values(energy.wh).reduce((a,b)=>a+b, 0); rstat.base0 = energy.base;
+}
+function reportCollect(){
+  for (const k of ['temp','hum','light','gas']){
+    const v = S[k]; rstat.min[k] = Math.min(rstat.min[k] ?? v, v); rstat.max[k] = Math.max(rstat.max[k] ?? v, v); rstat.sum[k] = (rstat.sum[k] || 0) + v;
+  }
+  rstat.n++;
+  const w = S.gas >= cfg.gasWarn && S.gas < cfg.gasAlarm, a = S.gas >= cfg.gasAlarm;
+  if (w && !rstat.prevWarn) rstat.warn++; if (a && !rstat.prevAlarm) rstat.alarm++;
+  rstat.prevWarn = w; rstat.prevAlarm = a;
+  INS.faults.forEach(f=>rstat.faults.add(f.msg.replace(/\d+ s$/, '').trim()));
+}
+function nextReportAt(){
+  const every = $('#trEvery').value; if (every === 'off') return null;
+  let last = lastReportAt();
+  if (!last){ last = Date.now(); setLastReportAt(last); }     // first time: count from now, never fire instantly
+  if (every === 'daily'){
+    const [h, m] = ($('#trAt').value || '08:00').split(':').map(Number);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    let t = d.getTime(); if (t <= last) t += 86400000;            // already sent today → tomorrow
+    return t;
+  }
+  return (last || rstat.since) + (+every)*60000;
+}
+const hmTime = t => new Date(t).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', hour12:false });
+function buildReport(title){
+  const n = Math.max(1, rstat.n), mode = source==='sim' ? 'Simulation' : source==='replay' ? 'Replay' : 'Live sensors';
+  const avg = k => rstat.sum[k] != null ? rstat.sum[k]/n : S[k], mn = k => rstat.min[k] ?? S[k], mx = k => rstat.max[k] ?? S[k];
+  const mins = Math.max(1, Math.round((Date.now() - rstat.since)/60000));
+  const whNow = Object.values(energy.wh).reduce((a,b)=>a+b, 0), dWh = whNow - rstat.wh0, dBase = energy.base - rstat.base0;
+  const savedPct = dBase > 0 ? Math.round((dBase - dWh)/dBase*100) : 0;
+  const top = recommendations()[0];
+  const st = k => STATUS_TXT[k][status(k)];
+  const lines = [
+    `📊 ${title || 'Room report'} — Room ${currentRoom}`,
+    `${stamp()} · ${mode}`,
+    ``,
+    `NOW`,
+    `🌡 ${f1x(S.temp)} °C (${st('temp')}) · 💧 ${S.hum.toFixed(0)} % (${st('hum')})`,
+    `💡 ${S.light.toFixed(0)} lux (${st('light')}) · 🔥 ${S.gas.toFixed(0)} ppm (${st('gas')})`,
+    ``,
+    `LAST ${mins >= 120 ? (mins/60).toFixed(1) + ' h' : mins + ' min'} (low / avg / high)`,
+    `Temperature ${f1x(mn('temp'))} / ${f1x(avg('temp'))} / ${f1x(mx('temp'))} °C`,
+    `Humidity ${mn('hum').toFixed(0)} / ${avg('hum').toFixed(0)} / ${mx('hum').toFixed(0)} %`,
+    `Light ${mn('light').toFixed(0)} / ${avg('light').toFixed(0)} / ${mx('light').toFixed(0)} lux`,
+    `Gas ${mn('gas').toFixed(0)} / ${avg('gas').toFixed(0)} / ${mx('gas').toFixed(0)} ppm`,
+    `Gas warnings: ${rstat.warn} · gas alarms: ${rstat.alarm}`,
+    ``,
+    `DEVICES: AC ${act.hvac.on?'on':'off'} · Lights ${act.lights.on?'on':'off'} · Blinds ${Math.round(act.blinds.open*100)} % · Fan ${act.vent.on?'on':'off'} · Projector ${lecture.on?'on':'off'}`,
+    `ENERGY (this period): ${(dWh/1000).toFixed(2)} kWh · ${(dWh/1000*TARIFF).toFixed(2)} EGP · ${savedPct} % saved by the BMS`,
+  ];
+  if (INS.pred != null) lines.push(`FORECAST: ${f1x(INS.pred)} °C in 30 min`);
+  lines.push(`SENSOR HEALTH: ${rstat.faults.size || INS.faults.length ? [...new Set([...rstat.faults, ...INS.faults.map(f=>f.msg)])].join('; ') : 'all OK'}`);
+  lines.push(``, `👉 ${top.t}`, `Best option: ${top.best}`);
+  return lines.join('\n');
+}
+async function sendReport(title, manual){
+  if (!tg.token || !tg.chat){ $('#trStatus').textContent = 'Add the bot token and chat ID above first.'; return false; }
+  try{
+    const r = await tgSend(buildReport(title));
+    setLastReportAt(Date.now()); resetReportStats(); cloudSaveSoon();
+    log(`${manual ? 'Report' : 'Automatic report'} ${r} to Telegram`); updateReportStatus(`${manual ? 'Report' : 'Last report'} ${r} at ${hmTime(Date.now())}.`);
+    return true;
+  }catch(e){
+    rstat.retryAt = Date.now() + 120000;
+    log('Report failed: ' + e.message, 'warn'); $('#trStatus').textContent = `Report failed: ${e.message}. Retrying in 2 min.`; return false;
+  }
+}
+function updateReportStatus(prefix){
+  const nx = nextReportAt();
+  $('#trStatus').textContent = !reportOn() ? (prefix || 'Automatic reports are off.')
+    : !(tg.token && tg.chat) ? 'Add the bot token and chat ID above, then press Save.'
+    : !loggedIn ? 'Paused while logged out.'
+    : `${prefix ? prefix + ' ' : ''}Next report at ${hmTime(nx)}${new Date(nx).toDateString() !== new Date().toDateString() ? ' tomorrow' : ''}.`;
+}
+let reportBusy = false;
+function reportTick(){
+  if (!loggedIn) return;
+  reportCollect();
+  if (!reportOn() || !tg.token || !tg.chat || reportBusy) return;
+  if (rstat.retryAt && Date.now() < rstat.retryAt) return;
+  const nx = nextReportAt();
+  if (Date.now() >= nx){ reportBusy = true; rstat.retryAt = 0; sendReport().finally(()=>{ reportBusy = false; }); }
+  else if (!/failed/.test($('#trStatus').textContent) && Date.now() % 10000 < 1100) updateReportStatus();
+}
+function scheduleChanged(){
+  $('#trAt').classList.toggle('hidden', $('#trEvery').value !== 'daily');
+  tgRead(); try{ tgPersist(); }catch{}
+  setLastReportAt(Date.now());   // the schedule counts from now (a daily time already passed today waits for tomorrow)
+  if (!rstat.n) resetReportStats();
+  const v = $('#trEvery'); log(reportOn() ? `Automatic reports: ${v.selectedOptions[0].text}${v.value==='daily' ? ' ' + $('#trAt').value : ''}` : 'Automatic reports turned off');
+  updateReportStatus();
+}
+$('#trEvery').addEventListener('change', scheduleChanged);
+$('#trAt').addEventListener('change', scheduleChanged);
+$('#trNow').addEventListener('click', ()=>{ tgRead(); sendReport('Room report', true); });
+
+/* ================================================================== CLOUD SETTINGS SYNC (Firebase) */
+const DEVICE_ID = Math.random().toString(36).slice(2, 10);
+let cloudUnsub = null, applyingRemote = false, cloudTimer = null;
+const settingsRef = () => FB.F.doc(FB.db, 'rooms', currentRoom, 'private', 'settings');
+const CFG_IDS = [['#cSp','setpoint'],['#cHum','humMax'],['#cLux','luxMin'],['#cGw','gasWarn'],['#cGa','gasAlarm']];
+const PW_IDS = [['#pwHvac','hvac'],['#pwLights','lights'],['#pwVent','vent'],['#pwProj','projector']];
+function setCloudTxt(t){ $('#cloudTxt').textContent = t ? '· ' + t : ''; }
+function settingsSnapshot(){
+  tgRead();
+  return { telegram:{ token:tg.token, chat:tg.chat, on:{ ...tg.on }, sim:tg.sim },
+    report:{ every:$('#trEvery').value, at:$('#trAt').value, lastSent:lastReportAt() },
+    cfg:{ ...cfg }, power:{ ...POWER }, tariff:TARIFF, layout:layoutData(), lectureTopic:lecture.topic,
+    by:DEVICE_ID, updated:Date.now() };
+}
+function cloudSaveSoon(){
+  if (!FB || !FB.auth || !FB.auth.currentUser || !loggedIn || applyingRemote) return;
+  clearTimeout(cloudTimer); setCloudTxt('saving…'); cloudTimer = setTimeout(()=>cloudSaveNow(), 1200);
+}
+async function cloudSaveNow(force){
+  if (!FB || !FB.auth || !FB.auth.currentUser || (!loggedIn && !force)) return;
+  clearTimeout(cloudTimer);
+  try{ await FB.F.setDoc(settingsRef(), settingsSnapshot()); setCloudTxt('☁ saved'); }
+  catch(e){ setCloudTxt('☁ save failed'); log('Cloud save failed: ' + authMsg(e), 'warn'); }
+}
+function applySettings(d){
+  applyingRemote = true;
+  try{
+    if (d.telegram){
+      $('#tgToken').value = d.telegram.token || ''; $('#tgChat').value = d.telegram.chat || '';
+      for (const k in TG_IDS) if (d.telegram.on && k in d.telegram.on) $(TG_IDS[k]).checked = !!d.telegram.on[k];
+      if ('sim' in d.telegram) $('#tgSim').checked = !!d.telegram.sim;
+      tgRead(); try{ tgPersist(); }catch{}
+    }
+    if (d.report){
+      $('#trEvery').value = d.report.every || 'off'; $('#trAt').value = d.report.at || '08:00';
+      $('#trAt').classList.toggle('hidden', $('#trEvery').value !== 'daily');
+      if ((d.report.lastSent || 0) > lastReportAt()) setLastReportAt(d.report.lastSent);
+    }
+    if (d.cfg) CFG_IDS.forEach(([id,k])=>{ if (k in d.cfg && +$(id).value !== +d.cfg[k]){ $(id).value = d.cfg[k]; $(id).dispatchEvent(new Event('input')); } });
+    if (d.power) PW_IDS.forEach(([id,k])=>{ if (k in d.power){ $(id).value = d.power[k]; POWER[k] = Math.max(0, +d.power[k] || 0); } });
+    if (d.tariff != null){ $('#tariff').value = d.tariff; TARIFF = Math.max(0, +d.tariff || 0); }
+    if (d.layout && !editMode && !dragging) applyLayout(d.layout);
+    if (d.lectureTopic){ $('#slTopic').value = d.lectureTopic; lecture.topic = d.lectureTopic; drawSlide(); }
+    updateReportStatus(); renderEnergy();
+  } finally { applyingRemote = false; }
+}
+async function cloudAttach(room){
+  cloudDetach(); setCloudTxt('☁ loading settings…');
+  try{
+    const snap = await FB.F.getDoc(settingsRef());
+    if (snap.exists()){ applySettings(snap.data()); log('Settings loaded from the cloud'); setCloudTxt('☁ synced'); }
+    else { await cloudSaveNow(); log('Room settings saved to the cloud for the first time'); }
+    cloudUnsub = FB.F.onSnapshot(settingsRef(), s=>{
+      const d = s.data(); if (!d || d.by === DEVICE_ID) return;
+      applySettings(d); setCloudTxt('☁ updated from another computer'); log('Settings updated from another computer');
+    }, e=>{ setCloudTxt('☁ offline'); });
+  }catch(e){ setCloudTxt('☁ unavailable'); log('Cloud settings unavailable: ' + authMsg(e), 'warn'); }
+}
+function cloudDetach(){ if (cloudUnsub){ cloudUnsub(); cloudUnsub = null; } setCloudTxt(''); }
+// save automatically whenever a synced setting changes
+CFG_IDS.forEach(([id])=>$(id).addEventListener('change', cloudSaveSoon));
+PW_IDS.forEach(([id])=>$(id).addEventListener('change', cloudSaveSoon));
+['#tariff','#slTopic','#trEvery','#trAt'].forEach(id=>$(id).addEventListener('change', cloudSaveSoon));
+$('#tgSave').addEventListener('click', cloudSaveSoon);
+
+/* ------------------------------------------------------------------ editor UI + keyboard */
+function setEdit(on){
+  editMode = on; $('#editBtn').classList.toggle('on', on); $('#editbar').hidden = !on;
+  if (!on){ select(null); dragging = null; controls.enabled = true; }
+  else editHint();
+  log(on ? 'Layout editing ON' : 'Layout editing OFF');
+}
+$('#editBtn').addEventListener('click', ()=>setEdit(!editMode));
+$('#helpBtn').addEventListener('click', ()=>{ $('#help').hidden = false; });
+$('#helpClose').addEventListener('click', ()=>{ $('#help').hidden = true; });
+$('#help').addEventListener('click', e=>{ if (e.target.id==='help') $('#help').hidden = true; });
+function openLayoutDlg(text, msg){ $('#layoutTxt').value = text; $('#layoutMsg').textContent = msg || ''; $('#layoutDlg').hidden = false; }
+$('#layoutClose').addEventListener('click', ()=>{ $('#layoutDlg').hidden = true; });
+$('#layoutApply').addEventListener('click', ()=>{
+  try{ applyLayout(JSON.parse($('#layoutTxt').value)); $('#layoutDlg').hidden = true; log('Layout applied from text'); cloudSaveSoon(); }
+  catch(e){ $('#layoutMsg').textContent = 'That text is not a valid layout.'; }
+});
+$('#editbar').addEventListener('click', async e=>{
+  const a = e.target.closest('button')?.dataset.e; if (!a) return;
+  if (a==='done') return setEdit(false);
+  if (a==='save') return saveLayout();
+  if (a==='reset'){ applyLayout({}); log('Layout reset to the original room'); cloudSaveSoon(); return; }
+  if (a==='paste') return openLayoutDlg('', 'Paste a layout you copied earlier, then press Apply.');
+  if (a==='copy'){
+    const t = JSON.stringify(layoutData());
+    try{ await navigator.clipboard.writeText(t); log('Layout copied to clipboard'); }
+    catch{ openLayoutDlg(t, 'Clipboard blocked here — select the text and copy it.'); }
+    return;
+  }
+  editAction(a);
+});
+window.addEventListener('keydown', e=>{
+  if (e.target.closest('input,textarea,select')) return;
+  const k = e.key;
+  if (k==='Escape'){ $('#help').hidden = true; $('#layoutDlg').hidden = true; $('#textDlg').hidden = true; if (editMode) select(null); return; }
+  if (k==='h' || k==='H' || k==='?'){ $('#help').hidden = !$('#help').hidden; return; }
+  if (k==='e' || k==='E'){ setEdit(!editMode); return; }
+  if (['1','2','3','4'].includes(k)){ goView(['photo','overview','top','front'][+k-1]); return; }
+  if (!editMode){
+    if (k==='p' || k==='P') setProjector(!lecture.on);
+    if (lecture.on && (k==='ArrowRight' || k==='ArrowLeft')){ e.preventDefault(); goSlide(k==='ArrowRight' ? 1 : -1); }
+    return;
+  }
+  const map = { n:'add', N:'add', d:'dup', D:'dup', r:'rot', R:'rot', Delete:'del', Backspace:'del',
+    ArrowLeft:'left', ArrowRight:'right', ArrowUp:'fwd', ArrowDown:'back', PageUp:'up', PageDown:'down', '+':'up', '-':'down' };
+  if (map[k]){ e.preventDefault(); editAction(map[k]); }
+});
+
+if (loadLayout()) log('Saved layout loaded');
+setBlinds(1);
+log('Digital twin ready — simulation mode');
+renderEnergy(); drawSlide(); initLogin();
+tick(); setInterval(tick, 1000);
+frame();
+</script>
+</body>
+</html>
